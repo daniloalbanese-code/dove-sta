@@ -320,8 +320,6 @@ textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius
 <symbol id="i-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V4.5h14V7M12 4.5v15M9 19.5h6"/></symbol>
 </defs></svg>
 
-</head>
-<body>
 <div id="app">
   <header class="band pad">
     <h1><svg class="mark" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v11h-8v7H3z" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="miter"/><circle cx="8.5" cy="8.5" r="2.2" fill="var(--accent)"/></svg>Dove Sta</h1>
@@ -745,7 +743,12 @@ function bounds(){
   pts.forEach(p=>{x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y);});
   return {x0,y0,x1,y1};
 }
-function fit(){measure();fitCalc();render();}
+/* L'ultima rotazione scelta per ogni stanza resta salvata (anche per la stampa). */
+const VKEY='dovesta.vrot';
+function vrotMap(){try{return JSON.parse(localStorage.getItem(VKEY))||{};}catch(_){return {};}}
+function vrotOf(id){const n=+vrotMap()[id];return [0,90,180,270].includes(n)?n:0;}
+function saveVrot(){try{const m=vrotMap();m[S.cur]=ui.view.rot;localStorage.setItem(VKEY,JSON.stringify(m));}catch(_){}}
+function fit(){measure();ui.view.rot=vrotOf(S.cur);fitCalc();render();}
 function fitCalc(){
   const b=bounds(),v=ui.view;
   if(!b||!W||!H){v.cx=2.8;v.cy=2.1;v.ppm=W?clamp(Math.min(W/6,H/4.6),20,90):70;}
@@ -1061,6 +1064,7 @@ function zoomAt(cx,cy,f){
 /* Ruota la vista di 90 gradi per volta, restando centrata sullo stesso punto. */
 function rotateView(step){
   ui.view.rot=(((ui.view.rot+90*step)%360)+360)%360;
+  saveVrot();
   render();
 }
 function startPinch(){
@@ -1193,7 +1197,7 @@ function endPtr(e){
     if(ptrs.size<2){
       const tapRot=!pinch.moved&&e.type==='pointerup'&&performance.now()-pinch.t0<350;
       pinch=null;
-      if(tapRot) rotateView(1);
+      if(tapRot) rotateView(1); else saveVrot();
     }
     drag=null;return;
   }
@@ -2291,7 +2295,7 @@ function withRooms(w,h,fn){
   try{
     ui.sel=null;ui.selTxt=null;ui.selWall=null;ui.selOp=null;ui.bgEd=false;ui.rpEd=false;ui.mode='furn';ui.q='';ui.flt=null;ui.wallDraw=null;ui.guides=null;
     S.rooms.forEach(rm=>{
-      S.cur=rm.id;W=w;H=h;ui.view.rot=0;fitCalc();render();
+      S.cur=rm.id;W=w;H=h;ui.view.rot=vrotOf(rm.id);fitCalc();render();
       fn(rm,`<svg class="pmap" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${gridG.innerHTML}${bgG.innerHTML}${sceneG.innerHTML}</svg>`);
     });
   }finally{
