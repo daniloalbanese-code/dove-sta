@@ -1718,7 +1718,7 @@ function toolsHtml(){
     btn=B('door','Aggiungi porta','pri')+B('window','Aggiungi finestra');
   }else{
     hint='Testi, foto e gestione della stanza.';
-    btn=B('addtext','Aggiungi testo')+B('bg','Foto sfondo')+B('rph','Foto della stanza')+B('delroom','Elimina stanza','danger');
+    btn=B('renroom','Rinomina stanza')+B('addtext','Aggiungi testo')+B('bg','Foto sfondo')+B('rph','Foto della stanza')+B('delroom','Elimina stanza','danger');
   }
   return `<div class="dockin pad">${tabs}<p class="hint">${hint}</p><div class="tools">${btn}</div></div>`;
 }
@@ -1968,6 +1968,14 @@ dock.addEventListener('click',e=>{
   else if(a==='wallmeas'){editTz();}
   else if(a==='walldel'){twoTap(b,'Tocca ancora per eliminare',()=>{r.walls=r.walls.filter(x=>x.id!==ui.selWall);ui.selWall=null;save();render();renderDock();});}
   else if(a==='reset'){twoTap(b,'Tocca ancora per cancellare i muri',()=>{r.pts=[];r.walls=[];r.labels=[];r.ops=[];r.closed=false;ui.selWall=null;ui.selOp=null;ui.wallDraw=null;save();render();renderInfo();renderDock();});}
+  else if(a==='renroom'){
+    openModal({title:'Rinomina la stanza',ok:'Salva',fields:[{label:'Nome della stanza',value:r.name,mode:'text',max:30}],onOk:v=>{
+      const n=String(v[0]).trim();
+      if(!n) return 'Scrivi un nome.';
+      if(S.rooms.some(x=>x!==r&&x.name.toLowerCase()===n.toLowerCase())) return 'Esiste già una stanza con questo nome.';
+      r.name=n;save();renderRoomSel();renderInfo();
+    }});
+  }
   else if(a==='delroom'){twoTap(b,'Tocca ancora per eliminare',()=>{
     if(S.rooms.length<2){toast('Serve almeno una stanza.');return;}
     forceSnap();
