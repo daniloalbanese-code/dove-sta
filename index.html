@@ -302,6 +302,11 @@ textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius
 .palh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 6px;font-size:13px;color:var(--muted)}
 .ibtn{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font:italic 700 15px/1 var(--f-display);cursor:pointer;flex:none;padding:0}
 .infop{margin:0 0 10px;font-size:14.5px}
+#menuBtn{position:relative}
+.sydot{position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--surface,#fff);background:#2e9f5b}
+.sydot.busy{background:#d9a21b}
+.sydot.bad{background:#d64545}
+.sycode{font:500 17px var(--f-mono);letter-spacing:.02em;word-break:break-all;padding:10px 12px;border:1.5px dashed var(--line);border-radius:10px;margin:0 0 8px;user-select:all}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
@@ -326,7 +331,7 @@ textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius
     <div class="roomsel">
       <select id="roomSel" aria-label="Stanza"></select>
       <button class="iconbtn" id="newRoom" type="button" aria-label="Nuova stanza">+</button>
-      <button class="iconbtn" id="menuBtn" type="button" aria-label="Menu: salva, carica, stampa">⋯</button>
+      <button class="iconbtn" id="menuBtn" type="button" aria-label="Menu: salva, carica, stampa">⋯<span id="syDot" class="sydot" hidden></span></button>
     </div>
   </header>
 
@@ -476,7 +481,7 @@ function load(){
   }catch(e){}
   return null;
 }
-var uiReady=false,usedChars=0,snapAt=0;
+var uiReady=false,usedChars=0,snapAt=0,syReady=false;
 let warnedNear=false,warned=false,st=null,pend=null,hist=[],redoS=[],base=null,lastJ='';
 /* Ogni salvataggio che cambia qualcosa mette lo stato precedente nella cronologia (annulla / ripeti). */
 function cloneS(o){
@@ -499,6 +504,7 @@ function save(){
   if(usedChars>4200000&&!warnedNear){warnedNear=true;toast('La memoria del telefono è quasi piena: salva una copia dei dati dal menu.');}
   try{localStorage.setItem(KEY,j);}
   catch(e){if(!warned){warned=true;toast('La memoria del telefono è piena: le ultime foto potrebbero non essere salvate.');}}
+  if(syReady) syOnSave();
 }
 /* Copia automatica dello stato precedente (senza foto) al massimo ogni 30 minuti: si ripristina dal menu. */
 const SNAPK='dovesta.snap';
@@ -529,6 +535,7 @@ function applyState(stt){
   const cur=S.cur;
   S=stt;S.cur=cur;base=cloneS(S);lastJ=JSON.stringify(S,noCur);
   try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}
+  if(syReady) syOnSave();
   if(!S.rooms.some(r=>r.id===S.cur)) S.cur=S.rooms[0].id;
   ui.wallDraw=null;ui.selWall=null;ui.guides=null;
   if(ui.selOp&&!getOp()) ui.selOp=null;
@@ -2124,7 +2131,7 @@ $('#newRoom').addEventListener('click',()=>{
 });
 $('#demoClear').addEventListener('click',function(){
   openModal({title:'Svuotare tutta la mappa?',
-    text:'Vengono tolte tutte le stanze, i mobili e gli oggetti che vedi ora, e riparti da una mappa vuota. Se hai già inserito cose tue, spariscono dalla mappa. Prima di svuotare l’app tiene una copia (senza foto): la ritrovi in ⋯ › Versioni precedenti. Per sicurezza puoi anche usare ⋯ › Salva copia.',
+    text:(sy.fam?'ATTENZIONE: questo telefono è collegato alla famiglia, quindi la mappa si svuota anche sugli altri telefoni. ':'')+'Vengono tolte tutte le stanze, i mobili e gli oggetti che vedi ora, e riparti da una mappa vuota. Se hai già inserito cose tue, spariscono dalla mappa. Prima di svuotare l’app tiene una copia (senza foto): la ritrovi in ⋯ › Versioni precedenti. Per sicurezza puoi anche usare ⋯ › Salva copia.',
     ok:'Sì, svuota tutto',fields:[],
     onOk:()=>{
       forceSnap();
@@ -2202,7 +2209,7 @@ function backupNote(){
 function openMenu(){
   const m=$('#modal');
   const B=(a,l)=>`<button type="button" class="btn" data-m="${a}">${l}</button>`;
-  m.innerHTML=`<div class="dlg"><h2>Menu</h2>${storInfo()}${backupNote()}<p class="mh">Aggiungere</p><div class="mlist">${B('phr','Aggiungi oggetti scrivendo una frase')}</div><p class="mh">Vedere</p><div class="mlist">${B('lst','Elenco di tutti i contenitori')}${B('ovr','Panoramica della casa')}${B('todo','Da fare: buttare, regalare, vendere')}</div><p class="mh">Dati</p><div class="mlist">${B('exp','Salva una copia dei dati')}${B('imp','Carica una copia salvata')}${B('ver','Versioni precedenti')}${B('plan1','Rimetti la stanza «Mansarda 1» (solo il perimetro)')}${B('fill','Riempi le stanze con mobili d’esempio')}${B('prt','Stampa piantine ed elenco')}</div><p class="mh">Impostazioni</p><div class="mlist">${B('look','Aspetto e colori')}${B('guide','Guida')}</div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-m="x">Chiudi</button></div></div>`;
+  m.innerHTML=`<div class="dlg"><h2>Menu</h2>${storInfo()}${backupNote()}<p class="mh">Aggiungere</p><div class="mlist">${B('phr','Aggiungi oggetti scrivendo una frase')}</div><p class="mh">Vedere</p><div class="mlist">${B('lst','Elenco di tutti i contenitori')}${B('ovr','Panoramica della casa')}${B('todo','Da fare: buttare, regalare, vendere')}</div><p class="mh">Dati</p><div class="mlist">${B('exp','Salva una copia dei dati')}${B('imp','Carica una copia salvata')}${B('ver','Versioni precedenti')}${B('plan1','Rimetti la stanza «Mansarda 1» (solo il perimetro)')}${B('fill','Riempi le stanze con mobili d’esempio')}${B('prt','Stampa piantine ed elenco')}</div><p class="mh">Impostazioni</p><div class="mlist">${B('sync','Famiglia: '+(sy.fam?'collegata':'collega i telefoni'))}${B('look','Aspetto e colori')}${B('guide','Guida')}</div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-m="x">Chiudi</button></div></div>`;
   m.hidden=false;
   m.onclick=e=>{
     if(e.target===m){closeM();return;}
@@ -2210,6 +2217,7 @@ function openMenu(){
     const a=b.dataset.m;
     if(a==='x') closeM();
     else if(a==='phr') phraseView();
+    else if(a==='sync') syncView();
     else if(a==='exp') exportView();
     else if(a==='imp') importView();
     else if(a==='todo') todoView();
@@ -2654,11 +2662,300 @@ if(window.ResizeObserver){
   }).observe(mapwrap);
 }
 
+/* ---------- famiglia: sincronizzazione con Firebase (Firestore, via REST) ---------- */
+const FBK='AIzaSyDWMBh7kuYyxqu2_AJHbd4PGlRnCjPKTnI',FBP='dove-sta-51ca4';
+const FSU='https://firestore.googleapis.com/v1/projects/'+FBP+'/databases/(default)/documents';
+const SYK='dovesta.sync';
+let sy=(()=>{try{const o=JSON.parse(localStorage.getItem(SYK));if(o&&typeof o==='object') return Object.assign({fam:'',rt:'',rooms:{},meta:{},ph:[],dt:{},last:0,err:'',dropDemo:false},o);}catch(_){}return {fam:'',rt:'',rooms:{},meta:{},ph:[],dt:{},last:0,err:'',dropDemo:false};})();
+function syPut(){try{localStorage.setItem(SYK,JSON.stringify(sy));}catch(_){}}
+let syTok='',syExp=0,syBusy=false,syAgain=false,syDirty=true,syApplying=false,syTimer=null,syTick=0,syAct=Date.now();
+const syLoc=new Map();
+function syHash(s){let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677);}h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);return (4294967296*(2097151&h2)+(h1>>>0)).toString(36)+s.length.toString(36);}
+const syPhMap=new Map();
+function syPhId(s){let id=syPhMap.get(s);if(!id){id=syHash(s);syPhMap.set(s,id);}return id;}
+function syOnSave(){
+  if(!sy.fam||syApplying) return;
+  syDirty=true;syLoc.clear();
+  const now=Date.now();S.rooms.forEach(r=>{sy.dt[r.id]=now;});
+  clearTimeout(syTimer);syTimer=setTimeout(()=>syncNow('save'),2500);
+}
+function syErr(e){
+  if(e&&e.code===403) return 'Firebase non permette l’accesso: controlla le regole del database.';
+  if(e&&e.code===400||e&&e.code===401) return 'Accesso a Firebase non riuscito ('+e.code+').';
+  if(e&&e.code===413) return 'Una foto è troppo grande per il cloud.';
+  if(!navigator.onLine||(e&&/fetch|network|load failed/i.test(e.message||''))) return 'Senza connessione: riprovo appena torna.';
+  return 'Errore di sincronizzazione'+(e&&e.code?' ('+e.code+')':'')+'.';
+}
+async function syToken(){
+  if(syTok&&Date.now()<syExp-60000) return syTok;
+  let j=null;
+  if(sy.rt){
+    try{
+      const r=await fetch('https://securetoken.googleapis.com/v1/token?key='+FBK,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(sy.rt)});
+      if(r.ok){const o=await r.json();j={idToken:o.id_token,refreshToken:o.refresh_token,expiresIn:o.expires_in};}
+    }catch(e){if(!navigator.onLine) throw e;}
+  }
+  if(!j){
+    const r=await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key='+FBK,{method:'POST',headers:{'Content-Type':'application/json'},body:'{"returnSecureToken":true}'});
+    if(!r.ok){const e=new Error('auth');e.code=r.status;throw e;}
+    j=await r.json();
+  }
+  syTok=j.idToken;syExp=Date.now()+(+j.expiresIn||3600)*1000;
+  if(j.refreshToken&&j.refreshToken!==sy.rt){sy.rt=j.refreshToken;syPut();}
+  return syTok;
+}
+async function syFs(method,path,body,qs){
+  for(let k=0;k<2;k++){
+    const tk=await syToken();
+    const r=await fetch(FSU+'/families/'+sy.fam+'/'+path+(qs?'?'+qs:''),{method,headers:Object.assign({Authorization:'Bearer '+tk},body?{'Content-Type':'application/json'}:{}),body:body?JSON.stringify(body):undefined});
+    if(r.status===401&&k===0){syTok='';continue;}
+    if(r.status===404) return null;
+    if(!r.ok){const e=new Error('fs');e.code=r.status;throw e;}
+    return r.json();
+  }
+}
+const syStr=v=>v&&v.stringValue!==undefined?v.stringValue:'';
+const syNum=v=>v&&v.integerValue!==undefined?Number(v.integerValue):0;
+function syEntry(f){const m=f&&f.mapValue&&f.mapValue.fields;if(!m) return null;return {t:syNum(m.t),h:syStr(m.h),d:!!(m.d&&m.d.booleanValue)};}
+const syEnc=(t,h,d)=>({mapValue:{fields:Object.assign({t:{integerValue:String(t)},h:{stringValue:h}},d?{d:{booleanValue:true}}:{})}});
+/* Foto: nel cloud la stanza contiene solo un riferimento, la foto sta in un documento a parte. */
+function syRoomOut(r){
+  const c=JSON.parse(JSON.stringify(r)),ph={};
+  const ref=s=>{if(typeof s==='string'&&s.slice(0,5)==='data:'){const id=syPhId(s);ph[id]=s;return '@ph:'+id;}return s;};
+  if(Array.isArray(c.photos)) c.photos=c.photos.map(ref);
+  if(c.bg&&c.bg.img) c.bg.img=ref(c.bg.img);
+  (c.furn||[]).forEach(f=>{if(Array.isArray(f.photos)) f.photos=f.photos.map(ref);(f.items||[]).forEach(i=>{if(i.p) i.p=ref(i.p);});});
+  const j=JSON.stringify(c);
+  return {id:r.id,j,h:syHash(j),ph};
+}
+function syLocal(){
+  return S.rooms.filter(r=>/^\w+$/.test(r.id)).map(r=>{let o=syLoc.get(r.id);if(!o){o=syRoomOut(r);syLoc.set(r.id,o);}return o;});
+}
+function syPhIndex(){const m=new Map();S.rooms.forEach(r=>{[...(r.photos||[]),r.bg&&r.bg.img].forEach(s=>{if(typeof s==='string'&&s.slice(0,5)==='data:') m.set(syPhId(s),s);});(r.furn||[]).forEach(f=>{(f.photos||[]).forEach(s=>{if(typeof s==='string'&&s.slice(0,5)==='data:') m.set(syPhId(s),s);});(f.items||[]).forEach(i=>{if(typeof i.p==='string'&&i.p.slice(0,5)==='data:') m.set(syPhId(i.p),i.p);});});});return m;}
+async function syPullRoom(id,known){
+  const d=await syFs('GET','rooms/'+id);if(!d) return null;
+  const r=JSON.parse(syStr(d.fields&&d.fields.j));
+  const need=new Set();
+  const want=s=>{if(typeof s==='string'&&s.slice(0,4)==='@ph:') need.add(s.slice(4));};
+  (r.photos||[]).forEach(want);if(r.bg) want(r.bg.img);(r.furn||[]).forEach(f=>{(f.photos||[]).forEach(want);(f.items||[]).forEach(i=>want(i.p));});
+  const got=new Map();
+  for(const pid of need){
+    if(known.has(pid)){got.set(pid,known.get(pid));continue;}
+    try{const pd=await syFs('GET','photos/'+pid);const v=pd&&syStr(pd.fields&&pd.fields.d);if(v){got.set(pid,v);known.set(pid,v);}}catch(e){if(e.code===403) throw e;}
+  }
+  const back=s=>(typeof s==='string'&&s.slice(0,4)==='@ph:')?(got.get(s.slice(4))||''):s;
+  if(Array.isArray(r.photos)) r.photos=r.photos.map(back).filter(Boolean);
+  if(r.bg&&r.bg.img){r.bg.img=back(r.bg.img);if(!r.bg.img) delete r.bg;}
+  (r.furn||[]).forEach(f=>{if(Array.isArray(f.photos)) f.photos=f.photos.map(back).filter(Boolean);(f.items||[]).forEach(i=>{if(i.p){i.p=back(i.p);if(!i.p) delete i.p;}});});
+  return r;
+}
+const syBlocked=()=>!!(typeof drag!=='undefined'&&drag)||!!(typeof pinch!=='undefined'&&pinch)||(!$('#modal').hidden)||(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+function syCommit(){
+  base=cloneS(S);lastJ=JSON.stringify(S,noCur);hist=[];redoS=[];
+  try{localStorage.setItem(KEY,JSON.stringify(S));}catch(_){}
+  if(!S.rooms.some(r=>r.id===S.cur)) S.cur=S.rooms[0].id;
+  if(ui.sel&&!getF(ui.sel)) ui.sel=null;
+  if(ui.selTxt&&!getT(ui.selTxt)) ui.selTxt=null;
+  if(ui.selOp&&!getOp()) ui.selOp=null;
+  ui.wallDraw=null;ui.selWall=null;
+  renderRoomSel();renderInfo();renderDock();render();updUndo();
+}
+async function syncNow(why){
+  if(!sy.fam) return;
+  if(syBusy){syAgain=true;return;}
+  if(!navigator.onLine){sy.err='Senza connessione: riprovo appena torna.';syPut();syStatus();return;}
+  syBusy=true;syStatus();
+  let changed=false;
+  try{
+    const idx=await syFs('GET','meta/idx');
+    if(!idx&&why==='join') {const e=new Error('nofam');e.code='nofam';throw e;}
+    const F=(idx&&idx.fields)||{};
+    const rem={};Object.keys(F).forEach(k=>{if(k.slice(0,2)==='r_'){const e=syEntry(F[k]);if(e) rem[k.slice(2)]=e;}});
+    const loc=syLocal(),lmap={};loc.forEach(o=>{lmap[o.id]=o;});
+    const pulls=[],pushes=[],dels=[],drop=[];
+    Object.keys(rem).forEach(id=>{
+      const e=rem[id],L=sy.rooms[id],lr=lmap[id];
+      if(e.d){
+        if(lr){ if(L&&lr.h===L.h) drop.push(id); else pushes.push(id); }
+        else delete sy.rooms[id];
+        return;
+      }
+      if(!lr){ if(L&&e.h===L.h) dels.push(id); else pulls.push(id); return; }
+      if(e.h===lr.h){sy.rooms[id]={h:e.h,t:e.t};return;}
+      const bh=L?L.h:null,lc=bh!==lr.h,rc=bh!==e.h;
+      if(!lc&&rc) pulls.push(id);
+      else if(lc&&!rc) pushes.push(id);
+      else{
+        if(!L||e.t>(sy.dt[id]||0)){forceSnap();pulls.push(id);}else pushes.push(id);
+      }
+    });
+    loc.forEach(o=>{
+      if(rem[o.id]) return;
+      if(sy.dropDemo) drop.push(o.id); else pushes.push(o.id);
+    });
+    Object.keys(sy.rooms).forEach(id=>{if(!rem[id]&&!lmap[id]) delete sy.rooms[id];});
+    /* scarica */
+    const got=[];
+    if(pulls.length){
+      if(syBlocked()&&why!=='join'&&why!=='manual'){pulls.length=0;}
+      else{
+        const known=syPhIndex();
+        for(const id of pulls){const r=await syPullRoom(id,known);if(r) got.push({id,r,e:rem[id]});}
+      }
+    }
+    /* carica */
+    const upPh=new Set(sy.ph);
+    for(const id of pushes){
+      const o=lmap[id];if(!o) continue;
+      for(const pid in o.ph){
+        if(upPh.has(pid)) continue;
+        const d=o.ph[pid];
+        if(d.length>1000000){continue;}
+        await syFs('PATCH','photos/'+pid,{fields:{d:{stringValue:d}}});
+        upPh.add(pid);sy.ph.push(pid);
+      }
+      const t=Date.now();
+      await syFs('PATCH','rooms/'+id,{fields:{j:{stringValue:o.j},t:{integerValue:String(t)}}});
+      await syFs('PATCH','meta/idx',{fields:{['r_'+id]:syEnc(t,o.h)}},'updateMask.fieldPaths=r_'+id);
+      sy.rooms[id]={h:o.h,t};
+    }
+    for(const id of dels){
+      const t=Date.now();
+      await syFs('PATCH','meta/idx',{fields:{['r_'+id]:syEnc(t,'',true)}},'updateMask.fieldPaths=r_'+id);
+      delete sy.rooms[id];
+    }
+    /* modelli personalizzati (palette) */
+    {
+      const mj=JSON.stringify(S.tpl||[]),mh=syHash(mj),me=syEntry(F.meta),mb=sy.meta&&sy.meta.h;
+      if(!me){ if(S.tpl&&S.tpl.length){const t=Date.now();await syFs('PATCH','meta/shared',{fields:{j:{stringValue:mj}}});await syFs('PATCH','meta/idx',{fields:{meta:syEnc(t,mh)}},'updateMask.fieldPaths=meta');sy.meta={h:mh,t};} }
+      else if(me.h===mh) sy.meta={h:mh,t:me.t};
+      else if(mb!==mh&&mb===me.h){const t=Date.now();await syFs('PATCH','meta/shared',{fields:{j:{stringValue:mj}}});await syFs('PATCH','meta/idx',{fields:{meta:syEnc(t,mh)}},'updateMask.fieldPaths=meta');sy.meta={h:mh,t};}
+      else if(mb!==me.h&&(why==='join'||why==='manual'||!syBlocked())){
+        const d=await syFs('GET','meta/shared');
+        if(d){try{const a=JSON.parse(syStr(d.fields.j));if(Array.isArray(a)){syApplying=true;S.tpl=a.filter(t=>t&&t.id&&t.e);changed=true;sy.meta={h:me.h,t:me.t};}}catch(_){}}
+      }
+    }
+    /* applica a questo telefono */
+    if(got.length||drop.length){
+      syApplying=true;
+      got.forEach(({id,r,e})=>{
+        const nr=norm({rooms:[r],tpl:[],pref:{}});if(!nr) return;
+        const room=nr.rooms[0],i=S.rooms.findIndex(x=>x.id===id);
+        if(i>=0) S.rooms[i]=room; else S.rooms.push(room);
+        sy.rooms[id]={h:e.h,t:e.t};syLoc.delete(id);
+      });
+      drop.forEach(id=>{
+        if(S.rooms.length>1){S.rooms=S.rooms.filter(x=>x.id!==id);delete sy.rooms[id];syLoc.delete(id);}
+      });
+      if(sy.dropDemo&&got.length){S.demo=false;}
+      changed=true;
+    }
+    sy.dropDemo=false;
+    if(changed){syCommit();if(why!=='join'&&why!=='manual'&&got.length) toast('Aggiornato da un altro telefono.');}
+    sy.last=Date.now();sy.err='';syPut();
+  }catch(e){
+    sy.err=e&&e.code==='nofam'?'nofam':syErr(e);syPut();
+    if(why==='join'&&e&&e.code==='nofam') throw e;
+  }finally{
+    syApplying=false;syBusy=false;syStatus();
+    if(syAgain){syAgain=false;setTimeout(()=>syncNow('again'),1500);}
+  }
+}
+function syStatus(){
+  const el=$('#syDot');if(!el) return;
+  el.hidden=!sy.fam;
+  el.className='sydot '+(syBusy?'busy':(sy.err?'bad':'ok'));
+  el.title=syBusy?'Sincronizzo…':(sy.err||'Sincronizzato');
+}
+function syInit(){
+  syReady=true;
+  syStatus();
+  const q=(()=>{try{return new URLSearchParams(location.search).get('f');}catch(_){return null;}})();
+  if(q){try{history.replaceState(null,'',location.pathname);}catch(_){}
+    if(!sy.fam){setTimeout(()=>syJoinView(q),900);}
+  }
+  document.addEventListener('pointerdown',()=>{syAct=Date.now();},{passive:true,capture:true});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&sy.fam) syncNow('visible');});
+  window.addEventListener('online',()=>{if(sy.fam) syncNow('online');});
+  setInterval(()=>{
+    if(!sy.fam||document.hidden) return;
+    syTick++;
+    const idle=Date.now()-syAct>180000;
+    if(idle&&syTick%6!==0) return;
+    syncNow('poll');
+  },10000);
+  if(sy.fam) setTimeout(()=>syncNow('start'),800);
+}
+const syCode=()=>{const A='abcdefghjkmnpqrstuvwxyz23456789',b=new Uint8Array(20);crypto.getRandomValues(b);let s='';b.forEach((x,i)=>{s+=A[x%A.length];if(i%5===4&&i<19) s+='-';});return s;};
+const syLink=()=>location.origin+location.pathname+'?f='+sy.fam;
+function syAgo(t){if(!t) return 'mai';const s=Math.round((Date.now()-t)/1000);if(s<20) return 'adesso';if(s<90) return 'un minuto fa';if(s<3600) return Math.round(s/60)+' minuti fa';return new Date(t).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});}
+function syInfoLine(){return sy.fam?`Famiglia collegata · ${sy.err&&sy.err!=='nofam'?esc(sy.err):'aggiornato '+syAgo(sy.last)}`:'Famiglia non collegata';}
+function syncView(){
+  const m=$('#modal');
+  if(!sy.fam){
+    m.innerHTML=`<div class="dlg"><h2>Famiglia</h2><p class="infop">Collega i telefoni di casa: quello che scrivi o sposti su uno compare anche sugli altri, foto comprese.</p><div class="mlist"><button type="button" class="btn pri" data-sy="new">Crea la famiglia (primo telefono)</button><button type="button" class="btn" data-sy="join">Ho già un codice (altro telefono)</button></div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-sy="x">Chiudi</button></div></div>`;
+  }else{
+    m.innerHTML=`<div class="dlg"><h2>Famiglia</h2><p class="infop">${syInfoLine()}</p><p class="mh">Codice di famiglia</p><p class="sycode" id="syCodeTx">${esc(sy.fam)}</p><p class="hint">Chi ha il codice vede e modifica tutto: dallo solo ai tuoi. Sugli altri telefoni: Menu › Famiglia › «Ho già un codice».</p><div class="mlist"><button type="button" class="btn pri" data-sy="share">Invia l’invito</button><button type="button" class="btn" data-sy="copy">Copia il codice</button><button type="button" class="btn" data-sy="now">Sincronizza adesso</button><button type="button" class="btn danger" data-sy="off">Scollega questo telefono</button></div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-sy="x">Chiudi</button></div></div>`;
+  }
+  m.hidden=false;
+  m.onclick=async e=>{
+    const b=e.target.closest('button[data-sy]');if(!b){if(e.target===m) closeM();return;}
+    const a=b.dataset.sy;
+    if(a==='x') closeM();
+    else if(a==='join') syJoinView('');
+    else if(a==='new'){
+      forceSnap();
+      sy={fam:syCode(),rt:sy.rt,rooms:{},meta:{},ph:[],dt:{},last:0,err:'',dropDemo:false};syPut();syDirty=true;syLoc.clear();
+      b.disabled=true;b.textContent='Creo…';
+      await syncNow('manual');syncView();
+    }
+    else if(a==='copy'){try{await navigator.clipboard.writeText(sy.fam);toast('Codice copiato.');}catch(_){toast('Tieni premuto sul codice per copiarlo.');}}
+    else if(a==='share'){
+      const txt='Entra nella mia mappa di casa su Dove Sta: '+syLink();
+      try{if(navigator.share){await navigator.share({title:'Dove Sta',text:'Entra nella mia mappa di casa su Dove Sta.',url:syLink()});}else{await navigator.clipboard.writeText(txt);toast('Invito copiato: incollalo in un messaggio.');}}catch(_){}
+    }
+    else if(a==='now'){b.disabled=true;b.textContent='Sincronizzo…';await syncNow('manual');syncView();}
+    else if(a==='off'){
+      m.innerHTML=`<div class="dlg"><h2>Scollegare questo telefono?</h2><p class="infop">I dati restano su questo telefono ma non si aggiornano più con gli altri. Con il codice puoi ricollegarti quando vuoi.</p><div class="drow"><button type="button" class="btn" data-sy="back">Annulla</button><button type="button" class="btn danger" data-sy="off2">Scollega</button></div></div>`;
+    }
+    else if(a==='back') syncView();
+    else if(a==='off2'){sy={fam:'',rt:sy.rt,rooms:{},meta:{},ph:[],dt:{},last:0,err:'',dropDemo:false};syPut();syStatus();closeM();toast('Telefono scollegato.');}
+  };
+}
+function syJoinView(code){
+  const m=$('#modal');
+  const demo=!!S.demo;
+  m.innerHTML=`<div class="dlg"><h2>Entra nella famiglia</h2><p class="infop">Scrivi il codice che ti ha dato chi ha creato la famiglia (o apri il suo link di invito).</p><label class="fld"><span>Codice</span><span class="inp"><input id="syIn" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(code||'')}" placeholder="xxxxx-xxxxx-xxxxx-xxxxx"></span></label><p class="hint">${demo?'Questo telefono ha solo la mappa d’esempio: verrà sostituita da quella della famiglia.':'Le stanze che hai già su questo telefono restano e vengono aggiunte a quelle della famiglia. Prima l’app ne tiene una copia in ⋯ › Versioni precedenti.'}</p><p class="err" id="syEr" role="alert" hidden></p><div class="drow"><button type="button" class="btn" data-sj="x">Annulla</button><button type="button" class="btn pri" data-sj="go">Entra</button></div></div>`;
+  m.hidden=false;
+  m.onclick=async e=>{
+    const b=e.target.closest('button[data-sj]');if(!b) return;
+    if(b.dataset.sj==='x'){closeM();return;}
+    const c=$('#syIn').value.toLowerCase().replace(/[^a-z0-9-]/g,'');
+    const er=$('#syEr');
+    if(c.replace(/-/g,'').length<16){er.textContent='Il codice è troppo corto: controlla di averlo copiato tutto.';er.hidden=false;return;}
+    b.disabled=true;b.textContent='Controllo…';er.hidden=true;
+    const old=sy;
+    forceSnap();
+    sy={fam:c,rt:old.rt,rooms:{},meta:{},ph:[],dt:{},last:0,err:'',dropDemo:demo};syPut();syLoc.clear();syDirty=true;
+    try{
+      await syncNow('join');
+      if(sy.err&&sy.err!=='nofam'){throw Object.assign(new Error(sy.err),{shown:true});}
+      toast('Collegato alla famiglia.');syncView();
+    }catch(err){
+      sy=old;syPut();syStatus();
+      b.disabled=false;b.textContent='Entra';
+      er.textContent=err&&err.code==='nofam'?'Codice non trovato: controlla di averlo scritto giusto.':(err&&err.message)||'Non riesco a collegarmi.';er.hidden=false;
+    }
+  };
+  setTimeout(()=>{const i=$('#syIn');if(i&&!code) i.focus();},40);
+}
+
 uiReady=true;applyPref();
 renderRoomSel();renderInfo();renderChips();
 document.querySelectorAll('[data-mode]').forEach(b=>{const on=b.dataset.mode===ui.mode;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');});
 renderDock();
 fit();
+syInit();
 try{if(!localStorage.getItem('dovesta.guide')) setTimeout(()=>{if($('#modal').hidden) guideView(0);},700);}catch(_){}
 })();
 </script>
