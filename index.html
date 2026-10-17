@@ -1718,7 +1718,7 @@ function toolsHtml(){
     btn=B('door','Aggiungi porta','pri')+B('window','Aggiungi finestra');
   }else{
     hint='Testi, foto e gestione della stanza.';
-    btn=B('renroom','Rinomina stanza')+B('addtext','Aggiungi testo')+B('bg','Foto sfondo')+B('rph','Foto della stanza')+B('delroom','Elimina stanza','danger');
+    btn=B('addtext','Aggiungi testo')+B('bg','Foto sfondo')+B('rph','Foto della stanza')+B('renroom','Rinomina stanza')+B('delroom','Elimina stanza','danger');
   }
   return `<div class="dockin pad">${tabs}<p class="hint">${hint}</p><div class="tools">${btn}</div></div>`;
 }
