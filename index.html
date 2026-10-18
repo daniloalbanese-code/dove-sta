@@ -869,7 +869,7 @@ function render(){
   const wt=Math.max(3,0.1*ppm);
   if(n){
     const pts=P.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
-    if(r.closed&&n>=3) h+=`<polygon class="room${r.bg&&r.bg.img?' hasbg':''}" points="${pts}" style="stroke-width:${wt}"/>`;
+    if(r.closed&&n>=3) h+=`<polygon class="room${r.bg&&r.bg.img&&ui.mode==='room'?' hasbg':''}" points="${pts}" style="stroke-width:${wt}"/>`;
     else h+=`<polyline class="roomline" points="${pts}" style="stroke-width:${wt}"/>`;
   }
   h+=zonesSvg(r);
@@ -1043,7 +1043,7 @@ function render(){
 let bgEl=null,bgSrc='';
 function updBg(r,ppm,vr){
   const b=r.bg;
-  if(!b||!b.img){if(bgEl){bgG.innerHTML='';bgEl=null;bgSrc='';}return;}
+  if(!b||!b.img||ui.mode!=='room'){if(bgEl){bgG.innerHTML='';bgEl=null;bgSrc='';}return;}
   if(bgSrc!==b.img||!bgEl||!bgG.contains(bgEl)){
     bgG.innerHTML='<image preserveAspectRatio="none"/>';bgEl=bgG.firstChild;bgEl.setAttribute('href',b.img);bgSrc=b.img;
   }
@@ -1712,7 +1712,7 @@ function processFree(raw){
 }
 function setMode(m){
   dropEmptyTxt(null);ui.selTxt=null;
-  ui.mode=m;ui.zone=null;ui.sel=null;ui.wallDraw=null;ui.selWall=null;ui.selOp=null;ui.bgEd=false;ui.rpEd=false;ui.rpEd=false;ui.free=false;ui.cal=null;ui.freeLine=null;
+  ui.mode=m;ui.zone=null;ui.sel=null;ui.wallDraw=null;ui.selWall=null;ui.selOp=null;ui.bgEd=false;ui.rpEd=false;ui.rpEd=false;ui.free=false;ui.cal=null;ui.fin=false;ui.freeLine=null;
   document.querySelectorAll('[data-mode]').forEach(b=>{const on=b.dataset.mode===m;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');});
   renderDock();render();
 }
@@ -1866,6 +1866,7 @@ function renderDock(){
   }
   else if(tx){dock.className='';dock.innerHTML=textPanelHtml(tx);lastSel=null;}
   else if(ui.mode==='room'&&ui.cal){dock.className='';dock.innerHTML=calPanelHtml();lastSel=null;}
+  else if(ui.mode==='room'&&ui.fin){dock.className='';dock.innerHTML=`<div class="dockin pad"><p class="hint"><b>Controlla il disegno.</b> I punti blu sono gli angoli: trascinali se qualcosa non torna. Quando va bene premi Ok: la piantina viene salvata e in Mobili vedrai solo i muri, senza la foto.</p><div class="tools"><button type="button" class="btn pri" data-act="finok">Ok, salva</button><button type="button" class="btn" data-act="finedit">Correggi ancora</button></div></div>`;lastSel=null;}
   else if(ui.mode==='room'&&ui.free){dock.className='';dock.innerHTML=`<div class="dockin pad"><p class="hint"><b>Mano libera.</b> Disegna col dito la forma della stanza con un solo tratto, tornando vicino al punto di partenza. Poi l’app la rende dritta, con angoli a 90°. Con due dita puoi ingrandire.</p><div class="tools"><button type="button" class="btn" data-act="freestop">Annulla</button></div></div>`;lastSel=null;}
   else if(ui.mode==='room'&&ui.zone){dock.className='';dock.innerHTML=zonePanelHtml();lastSel=null;}
   else if(ui.mode==='room'&&ui.rpEd){dock.className='';dock.innerHTML=rpPanelHtml();lastSel=null;}
@@ -2000,8 +2001,10 @@ dock.addEventListener('click',e=>{
   else if(a==='calreset'){if(ui.cal) ui.cal.pts=[];render();renderDock();}
   else if(a==='calask'){calAsk();}
   else if(a==='autotrace'){planAuto();}
-  else if(a==='asok'){const L=parseNum(($('#asIn')||{}).value||'');if(!(L>=0.2&&L<=100)){toast('Scrivi la misura in metri, per esempio 9,00.');return;}calScale(L);toast('Fatto: il disegno ha le misure giuste. Se qualcosa non torna, trascina gli angoli o i muri.');}
-  else if(a==='asskip'){calScale(6);toast('Ho messo 6 metri per quel lato. Per correggere: tocca la misura di un muro e scrivi quella vera.');}
+  else if(a==='asok'){const L=parseNum(($('#asIn')||{}).value||'');if(!(L>=0.2&&L<=100)){toast('Scrivi la misura in metri, per esempio 9,00.');return;}ui.fin=true;calScale(L);toast('Misure calcolate. Controlla il disegno e premi Ok.');}
+  else if(a==='asskip'){ui.fin=true;calScale(6);toast('Ho messo 6 metri per quel lato. Per correggere: tocca la misura di un muro e scrivi quella vera.');}
+  else if(a==='finok'){ui.fin=false;save();setMode('furn');fit();toast('Piantina salvata. Ora tocca un mobile per aggiungerlo.');}
+  else if(a==='finedit'){ui.fin=false;renderDock();render();}
   else if(a==='asman'){r.pts=[];r.walls=[];r.closed=false;ui.cal={pts:[]};save();fit();renderInfo();renderDock();}
   else if(a==='calrot'){if(r.bg){r.bg.rot=((r.bg.rot||0)+90)%360;save();fit();}}
   else if(a==='calskip'){ui.cal=null;renderDock();render();toast('Va bene. Ricalca i muri toccando gli angoli. La scala si può cambiare dopo, da «Foto di sfondo».');}
