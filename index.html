@@ -608,11 +608,13 @@ function fltOk(i){
   const f=ui.flt;if(!f) return true;
   if(f.k==='st') return i.st===f.v;
   if(f.k==='tag') return (i.tg||[]).includes(f.v);
+  if(f.k==='ow') return (i.ow||'').toLowerCase()===f.v;
   if(f.k==='out') return !!i.out;
   if(f.k==='exp') return !!i.ex&&i.ex<=soon();
   return true;
 }
-const itemQ=(i,q)=>!q||i.t.toLowerCase().includes(q)||(i.tg||[]).some(t=>t.includes(q));
+const itemQ=(i,q)=>!q||i.t.toLowerCase().includes(q)||(i.tg||[]).some(t=>t.includes(q))||(i.ow||'').toLowerCase().includes(q);
+const owners=()=>{const m=new Map();S.rooms.forEach(r=>r.furn.forEach(f=>f.items.forEach(i=>{if(i.ow){const k=i.ow.toLowerCase();if(!m.has(k)) m.set(k,i.ow);}})));return [...m.values()].sort((a,b)=>a.localeCompare(b,'it'));};
 function fMatch(r,f,d){
   const q=ui.q.toLowerCase();
   if(!q&&!ui.flt) return false;
@@ -626,6 +628,7 @@ function badges(i){
   if(i.q>1) b.push(`<em class="bd">×${i.q}</em>`);
   if(i.st) b.push(`<em class="bd st-${i.st}">${STS[i.st]}</em>`);
   if(i.ex){const t=today();b.push(`<em class="bd${i.ex<=soon()?' warn':''}">${i.ex<t?'Scaduto':'Scade'} ${fmtD(i.ex)}</em>`);}
+  if(i.ow) b.push(`<em class="bd">Di ${esc(i.ow)}</em>`);
   if(i.out) b.push(`<em class="bd out">Preso da ${esc(i.out.w)} · ${fmtD(i.out.d).slice(0,5)}</em>`);
   (i.tg||[]).forEach(t=>b.push(`<em class="bd">#${esc(t)}</em>`));
   return b.join('');
@@ -644,6 +647,7 @@ function renderChips(){
   if(out) c.push({k:'out',v:'1',l:'Fuori sede'});
   if(ex) c.push({k:'exp',v:'1',l:'In scadenza'});
   Object.keys(tg).sort().forEach(t=>c.push({k:'tag',v:t,l:'#'+t}));
+  owners().forEach(o=>c.push({k:'ow',v:o.toLowerCase(),l:'Di '+o}));
   const on=x=>ui.flt&&ui.flt.k===x.k&&String(ui.flt.v)===x.v;
   if(ui.flt&&!c.some(on)) ui.flt=null;
   el.hidden=!c.length;
@@ -1740,6 +1744,8 @@ function itemEditor(f,i){
 <div class="two" style="margin-top:10px"><label class="fld"><span>Quantità</span><span class="inp"><input data-if="q" inputmode="numeric" value="${i.q||''}" placeholder="1"></span></label><label class="fld"><span>Scadenza</span><span class="inp"><input data-if="ex" type="date" value="${esc(i.ex||'')}"></span></label></div>
 <label class="fld"><span>Etichette, separate da virgola</span><span class="inp"><input data-if="tg" value="${esc(mine.join(', '))}" placeholder="Es. natale, inverno" maxlength="80"></span></label>
 ${sug.length?`<div class="kids">${sug.map(t=>`<button type="button" class="chip" data-itag="${esc(t)}">+ ${esc(t)}</button>`).join('')}</div>`:''}
+<label class="fld"><span>Di chi è (facoltativo)</span><span class="inp"><input data-if="ow" value="${esc(i.ow||'')}" placeholder="Es. Marco, della nonna" maxlength="30" autocomplete="off"></span></label>
+${owners().filter(o=>o!==i.ow).length?`<div class="kids">${owners().filter(o=>o!==i.ow).slice(0,8).map(o=>`<button type="button" class="chip" data-iow="${esc(o)}">${esc(o)}</button>`).join('')}</div>`:''}
 <label class="fld"><span>Preso da</span><span class="inp"><input data-if="out" value="${esc(i.out?i.out.w:'')}" placeholder="Chi lo ha portato via" maxlength="30"></span></label>
 ${i.out?`<div class="kids"><button type="button" class="btn sm" data-iin="1">Segna come rientrato</button></div>`:''}
 <label class="fld"><span>Sposta in un altro contenitore</span><select data-imv="1"><option value="">Scegli…</option>${targets.map(x=>`<option value="${esc(x.v)}">${esc(x.l)}</option>`).join('')}</select></label>
@@ -1751,6 +1757,7 @@ function itemFld(t,f){
   if(k==='q'){const n=parseInt(v,10);if(n>0) it.q=Math.min(n,9999);else delete it.q;}
   else if(k==='ex'){if(v) it.ex=v;else delete it.ex;}
   else if(k==='tg'){const a=[];v.split(',').forEach(x=>{x=x.trim().toLowerCase().slice(0,24);if(x&&!a.includes(x)) a.push(x);});if(a.length) it.tg=a.slice(0,8);else delete it.tg;}
+  else if(k==='ow'){const w=v.trim().slice(0,30);if(w) it.ow=w;else delete it.ow;}
   else if(k==='out'){const w=v.trim();if(w) it.out={w:w.slice(0,30),d:it.out?it.out.d:today()};else delete it.out;}
   const b=document.querySelector('[data-bds="'+it.id+'"]');if(b) b.innerHTML=badges(it);
   saveSoon();render();
@@ -1903,6 +1910,11 @@ dock.addEventListener('click',e=>{
   if(b.dataset.ist!==undefined&&f){
     const box=b.closest('.idet'),it=box&&f.items.find(x=>x.id===box.dataset.iid);
     if(it){if(b.dataset.ist) it.st=b.dataset.ist;else delete it.st;renderItems(f);save();render();}
+    return;
+  }
+  if(b.dataset.iow&&f){
+    const box=b.closest('.idet'),it=box&&f.items.find(x=>x.id===box.dataset.iid);
+    if(it){it.ow=b.dataset.iow;renderItems(f);save();render();}
     return;
   }
   if(b.dataset.itag&&f){
@@ -2645,7 +2657,7 @@ function listHtml(r){
   const ph=a=>a.length?`<div class="pph">${a.slice(0,3).map(x=>`<img src="${x}" alt="">`).join('')}</div>`:'';
   const row=(f,d)=>{
     let h=`<li class="pf" style="margin-left:${d*14}px"><div class="ptx"><b>${esc(emo(f)+' '+f.name)}</b> · ${LV[f.lvl||0]}${f.note?' · <i>'+esc(f.note)+'</i>':''}`;
-    if(f.items.length) h+=`<ul>${f.items.map(i=>`<li>${i.p?`<img class="pit" src="${i.p}" alt=""> `:''}${esc(i.t)}${i.q>1?' ×'+i.q:''}${i.st?' — '+STS[i.st]:''}${i.ex?' — scade '+fmtD(i.ex):''}${i.out?' — preso da '+esc(i.out.w):''}${(i.tg||[]).length?' — #'+i.tg.join(' #'):''}</li>`).join('')}</ul>`;
+    if(f.items.length) h+=`<ul>${f.items.map(i=>`<li>${i.p?`<img class="pit" src="${i.p}" alt=""> `:''}${esc(i.t)}${i.q>1?' ×'+i.q:''}${i.st?' — '+STS[i.st]:''}${i.ex?' — scade '+fmtD(i.ex):''}${i.ow?' — di '+esc(i.ow):''}${i.out?' — preso da '+esc(i.out.w):''}${(i.tg||[]).length?' — #'+i.tg.join(' #'):''}</li>`).join('')}</ul>`;
     h+=`</div>${ph(f.photos)}</li>`;
     kidsOf(r,f).forEach(k=>{h+=row(k,d+1);});
     return h;
