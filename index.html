@@ -329,6 +329,7 @@ textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius
 <symbol id="i-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V4.5h14V7M12 4.5v15M9 19.5h6"/></symbol>
 </defs></svg>
 
+</head><body>
 <div id="app">
   <header class="band pad">
     <h1><svg class="mark" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v11h-8v7H3z" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="miter"/><circle cx="8.5" cy="8.5" r="2.2" fill="var(--accent)"/></svg>Dove Sta</h1>
@@ -1573,7 +1574,7 @@ function modesHtml(){
 <label class="mode"><input type="file" accept="image/*" class="phin" data-plan="1" aria-label="Carica piantina"><span class="mi" aria-hidden="true">📷</span><span><b>Carica piantina</b><small>Hai una foto o un disegno della stanza: lo usi come traccia</small></span></label>
 <button type="button" class="mode" data-nm="draw"><span class="mi" aria-hidden="true">📏</span><span><b>Disegna righe</b><small>Tocchi gli angoli uno dopo l’altro, i muri vengono dritti</small></span></button>
 <button type="button" class="mode" data-nm="free"><span class="mi" aria-hidden="true">✍️</span><span><b>Mano libera</b><small>Disegni la forma col dito e l’app la ripulisce</small></span></button>
-</div><button type="button" class="lnkb" data-nm="meas">Stanza rettangolare? Scrivi solo le misure</button>`;
+</div><button type="button" class="lnkb" data-nm="meas">Stanza rettangolare? Scrivi solo le misure</button>${S.rooms.length>1?'<button type="button" class="lnkb" data-nm="drop" style="color:var(--danger,#B3361F)">Non mi serve questa stanza: eliminala</button>':''}`;
 }
 function newRoomView(){
   const m=$('#modal');
@@ -1581,9 +1582,22 @@ function newRoomView(){
   m.hidden=false;
   m.onclick=e=>{if(e.target===m) closeM();};
 }
+function deleteRoom(r){
+  if(S.rooms.length<2){toast('Serve almeno una stanza: creane un’altra prima.');return;}
+  forceSnap();
+  S.rooms=S.rooms.filter(x=>x.id!==r.id);S.cur=S.rooms[0].id;ui.sel=null;ui.zone=null;ui.cal=null;ui.free=false;ui.wallDraw=null;ui.selWall=null;ui.selOp=null;
+  save();renderRoomSel();renderInfo();renderDock();fit();
+  toast('Stanza eliminata.');
+}
+function askDeleteRoom(){
+  const r=R();
+  if(S.rooms.length<2){toast('Serve almeno una stanza: creane un’altra prima di eliminare questa.');return;}
+  openModal({title:'Eliminare «'+r.name+'»?',text:'La stanza sparisce con tutto quello che c’è dentro. Prima l’app tiene una copia: la ritrovi in ⋯ › Versioni precedenti.',ok:'Sì, elimina',fields:[],onOk:()=>{deleteRoom(r);}});
+}
 function modeAct(k){
   if(!$('#modal').hidden) closeM();
   if(k==='later') return;
+  if(k==='drop'){setTimeout(askDeleteRoom,60);return;}
   if(k==='meas'){openMeasures();return;}
   setMode('room');
   if(k==='draw'){toast('Tocca gli angoli della stanza uno dopo l’altro.');}
@@ -1860,7 +1874,7 @@ function renderDock(){
   else if(ui.mode==='room'){dock.className='';dock.innerHTML=toolsHtml();lastSel=null;}
   else{dock.className='';dock.innerHTML=paletteHtml();lastSel=null;}
   $('#empty').hidden=!(R().pts.length===0&&ui.mode==='furn'&&!ui.sel);
-  if(!$('#empty').hidden&&!$('#emModes').firstChild) $('#emModes').innerHTML=modesHtml();
+  if(!$('#empty').hidden){const em=$('#emModes'),k=S.rooms.length>1?'1':'0';if(!em.firstChild||em.dataset.k!==k){em.innerHTML=modesHtml();em.dataset.k=k;}}
 }
 function shrink(file,max0){
   return new Promise((res,rej)=>{
@@ -2009,11 +2023,7 @@ dock.addEventListener('click',e=>{
       r.name=n;save();renderRoomSel();renderInfo();
     }});
   }
-  else if(a==='delroom'){twoTap(b,'Tocca ancora per eliminare',()=>{
-    if(S.rooms.length<2){toast('Serve almeno una stanza.');return;}
-    forceSnap();
-    S.rooms=S.rooms.filter(x=>x.id!==r.id);S.cur=S.rooms[0].id;ui.sel=null;save();renderRoomSel();renderInfo();renderDock();fit();
-  });}
+  else if(a==='delroom'){twoTap(b,'Tocca ancora per eliminare',()=>{deleteRoom(r);});}
 });
 dock.addEventListener('input',e=>{
   if(e.target.id==='tText'){const tx=getT(ui.selTxt);if(tx){tx.t=e.target.value;render();saveSoon();}return;}
@@ -2250,7 +2260,7 @@ function backupNote(){
 function openMenu(){
   const m=$('#modal');
   const B=(a,l)=>`<button type="button" class="btn" data-m="${a}">${l}</button>`;
-  m.innerHTML=`<div class="dlg"><h2>Menu</h2>${storInfo()}${backupNote()}<p class="mh">Aggiungere</p><div class="mlist">${B('phr','Aggiungi oggetti scrivendo una frase')}</div><p class="mh">Vedere</p><div class="mlist">${B('lst','Elenco di tutti i contenitori')}${B('ovr','Panoramica della casa')}${B('todo','Da fare: buttare, regalare, vendere')}</div><p class="mh">Dati</p><div class="mlist">${B('exp','Salva una copia dei dati')}${B('imp','Carica una copia salvata')}${B('ver','Versioni precedenti')}${B('plan1','Rimetti la stanza «Mansarda 1» (solo il perimetro)')}${B('fill','Riempi le stanze con mobili d’esempio')}${B('prt','Stampa piantine ed elenco')}</div><p class="mh">Impostazioni</p><div class="mlist">${B('sync','Famiglia: '+(sy.fam?'collegata':'collega i telefoni'))}${B('look','Aspetto e colori')}${B('guide','Guida')}</div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-m="x">Chiudi</button></div></div>`;
+  m.innerHTML=`<div class="dlg"><h2>Menu</h2>${storInfo()}${backupNote()}<p class="mh">Aggiungere</p><div class="mlist">${B('phr','Aggiungi oggetti scrivendo una frase')}</div><p class="mh">Vedere</p><div class="mlist">${B('lst','Elenco di tutti i contenitori')}${B('ovr','Panoramica della casa')}${B('todo','Da fare: buttare, regalare, vendere')}</div><p class="mh">Dati</p><div class="mlist">${B('exp','Salva una copia dei dati')}${B('imp','Carica una copia salvata')}${B('ver','Versioni precedenti')}${B('plan1','Rimetti la stanza «Mansarda 1» (solo il perimetro)')}${B('fill','Riempi le stanze con mobili d’esempio')}${B('prt','Stampa piantine ed elenco')}</div><p class="mh">Impostazioni</p><div class="mlist">${B('sync','Famiglia: '+(sy.fam?'collegata':'collega i telefoni'))}${B('delr','Elimina questa stanza')}${B('look','Aspetto e colori')}${B('guide','Guida')}</div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-m="x">Chiudi</button></div></div>`;
   m.hidden=false;
   m.onclick=e=>{
     if(e.target===m){closeM();return;}
@@ -2258,6 +2268,7 @@ function openMenu(){
     const a=b.dataset.m;
     if(a==='x') closeM();
     else if(a==='phr') phraseView();
+    else if(a==='delr'){closeM();setTimeout(askDeleteRoom,60);}
     else if(a==='sync') syncView();
     else if(a==='exp') exportView();
     else if(a==='imp') importView();
@@ -3323,5 +3334,4 @@ try{if(!localStorage.getItem('dovesta.guide')) setTimeout(()=>{if($('#modal').hi
 })();
 </script>
 <script>if("serviceWorker"in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}</script>
-</body>
-</html>
+</body></html>
