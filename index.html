@@ -2565,6 +2565,10 @@ function zonePanelHtml(){
 }
 /* ---------- riconoscimento automatico dei muri da una piantina ---------- */
 async function planTrace(src){
+  for(const ro of [1,2]){const t=await planTrace1(src,ro);if(t) return t;}
+  return null;
+}
+async function planTrace1(src,ro){
   const im=new Image();
   await new Promise((ok,ko)=>{im.onload=ok;im.onerror=ko;im.src=src;});
   const k0=Math.min(1,900/Math.max(im.width,im.height)),w=Math.max(20,Math.round(im.width*k0)),h=Math.max(20,Math.round(im.height*k0));
@@ -2587,7 +2591,7 @@ async function planTrace(src){
     return o;
   };
   /* toglie linee sottili e scritte */
-  const open=box(box(dark,1,0),1,1);
+  const open=box(box(dark,ro,0),ro,1);
   /* componenti connesse */
   const lab=new Int32Array(N).fill(-1),comps=[];
   const st=new Int32Array(N);
@@ -2609,9 +2613,19 @@ async function planTrace(src){
   let mi=0;comps.forEach((c,i)=>{if(c.area>comps[mi].area) mi=i;});
   const main=comps[mi];
   if(main.area<N*0.002) return null;
+  /* tiene tutti i pezzi di muro spessi (le finestre e le porte li spezzano), scarta le macchioline */
+  const minA=Math.max(N*0.0006,main.area*0.02);
   const mask=new Uint8Array(N);
-  for(let i=0;i<N;i++){const l=lab[i];if(l>=0&&(l===mi||comps[l].area>=Math.max(N*0.003,main.area*0.04))) mask[i]=1;}
-  const mm=new Uint8Array(N);for(let i=0;i<N;i++) mm[i]=lab[i]===mi?1:0;
+  for(let i=0;i<N;i++){const l=lab[i];if(l>=0&&comps[l].area>=minA) mask[i]=1;}
+  /* muri disegnati a doppia riga: riempie il bianco in mezzo, così diventano un muro solo */
+  const cr=Math.max(2,Math.round(M*0.005)),mk2=box(box(mask,cr,1),cr,0);
+  for(let i=0;i<N;i++) mask[i]=mk2[i]?1:0;
+  const mm=mask;
+  /* ricolma i varchi lungo i muri (finestre, porte): chiusura in orizzontale e in verticale */
+  const Lg=Math.round(M*0.18),cc=new Uint8Array(N);
+  for(let i=0;i<N;i++) cc[i]=mask[i];
+  for(let y=0;y<h;y++){let last=-1;for(let x=0;x<w;x++){if(mask[y*w+x]){if(last>=0&&x-last>1&&x-last<=Lg) for(let q=last+1;q<x;q++) cc[y*w+q]=1;last=x;}}}
+  for(let x=0;x<w;x++){let last=-1;for(let y=0;y<h;y++){if(mask[y*w+x]){if(last>=0&&y-last>1&&y-last<=Lg) for(let q=last+1;q<y;q++) cc[q*w+x]=1;last=y;}}}
   /* spessore dei muri: mediana delle lunghezze dei tratti scuri stretti */
   const runs=[];
   for(let y=0;y<h;y+=2){let s=-1;for(let x=0;x<=w;x++){const on=x<w&&mm[y*w+x];if(on&&s<0) s=x;else if(!on&&s>=0){const l=x-s;if(l<=M*0.04) runs.push(l);s=-1;}}}
@@ -2620,7 +2634,7 @@ async function planTrace(src){
   const tw=Math.max(2,runs.length?runs[Math.floor(runs.length/2)]:3);
   /* sagoma piena: riempie l'interno racchiuso dai muri */
   const out=new Uint8Array(N),stk=[];
-  const push=(x,y)=>{const p=y*w+x;if(!mm[p]&&!out[p]){out[p]=1;stk.push(p);}};
+  const push=(x,y)=>{const p=y*w+x;if(!cc[p]&&!out[p]){out[p]=1;stk.push(p);}};
   for(let x=0;x<w;x++){push(x,0);push(x,h-1);}for(let y=0;y<h;y++){push(0,y);push(w-1,y);}
   while(stk.length){const p=stk.pop(),x=p%w,y=(p-x)/w;if(x>0)push(x-1,y);if(x<w-1)push(x+1,y);if(y>0)push(x,y-1);if(y<h-1)push(x,y+1);}
   let sil=new Uint8Array(N),sa=0;for(let i=0;i<N;i++){sil[i]=out[i]?0:1;sa+=sil[i];}
