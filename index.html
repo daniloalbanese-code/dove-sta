@@ -307,6 +307,10 @@ textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius
 .sydot.busy{background:#d9a21b}
 .sydot.bad{background:#d64545}
 .sycode{font:500 17px var(--f-mono);letter-spacing:.02em;word-break:break-all;padding:10px 12px;border:1.5px dashed var(--line);border-radius:10px;margin:0 0 8px;user-select:all}
+.zn{stroke:none;fill-opacity:.42;pointer-events:none}
+.zcol{display:flex;flex-wrap:wrap;gap:10px;margin:2px 0 10px}
+.zc{width:38px;height:38px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0;font:600 18px/1 var(--f-body);color:var(--ink);background:var(--surface)}
+.zc.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
@@ -867,6 +871,7 @@ function render(){
     if(r.closed&&n>=3) h+=`<polygon class="room${r.bg&&r.bg.img?' hasbg':''}" points="${pts}" style="stroke-width:${wt}"/>`;
     else h+=`<polyline class="roomline" points="${pts}" style="stroke-width:${wt}"/>`;
   }
+  h+=zonesSvg(r);
   const twt=Math.max(3,0.08*ppm);
   const opsS=r.ops.map(o=>({p:w2s(o.x,o.y),an:(((o.a+vr)%360)+360)%360*Math.PI/180,wp:o.w*ppm,tp:wt+3,pt:o.k==='porta',sd:(o.fl&1)?1:-1}));
   const hitOp=(o,c)=>{
@@ -891,7 +896,7 @@ function render(){
     addO(f.c[0],f.c[1],33,9);return f.c;};
   r.walls.forEach(wl=>{
     const a=w2s(wl.a.x,wl.a.y),b=w2s(wl.b.x,wl.b.y);
-    h+=`<line class="tz${ui.mode==='room'&&ui.selWall===wl.id?' sel':''}" x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" style="stroke-width:${twt}"/>`;
+    h+=`<line class="tz${ui.mode==='room'&&ui.selWall===wl.id?' sel':''}" x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" style="stroke-width:${twt}${wl.ds?`;stroke-dasharray:${(twt*2.6).toFixed(1)} ${(twt*1.9).toFixed(1)};stroke-linecap:butt`:''}"/>`;
   });
   if(ppm>=14) (r.labels||[]).forEach(l=>{
     const lp=w2s(l.x,l.y),lx=lp[0].toFixed(1),ly=lp[1];
@@ -1355,7 +1360,7 @@ function wallTap(d){
   else{
     if(Math.hypot(p.x-wd.p.x,p.y-wd.p.y)<0.1) return;
     const id=uid();
-    r.walls.push({id,a:{x:wd.p.x,y:wd.p.y},b:{x:p.x,y:p.y}});
+    r.walls.push(Object.assign({id,a:{x:wd.p.x,y:wd.p.y},b:{x:p.x,y:p.y}},wd.ds?{ds:1}:{}));
     ui.selWall=id;wd.p=null;save();
   }
   render();renderDock();
@@ -1411,6 +1416,7 @@ function addPointAt(w){
 function tap(d){
   if(ui.cal&&ui.mode==='room'){calTap(d);return;}
   if(ui.free&&ui.mode==='room') return;
+  if(ui.zone&&ui.mode==='room'){zoneTap(d);return;}
   if(d.k==='bgi') return;
   const r=R(),now=performance.now();
   const dbl=lastTap&&now-lastTap.t<400&&Math.hypot(d.sx-lastTap.x,d.sy-lastTap.y)<30;
@@ -1604,7 +1610,7 @@ async function planLoad(file){
 function calPanelHtml(){
   const n=ui.cal.pts.length;
   const t=n===0?'Tocca sulla foto il primo punto di una misura che conosci, per esempio un angolo di un muro.':n===1?'Ora tocca il secondo punto, per esempio l’altro angolo dello stesso muro.':'Scrivi quanto misura davvero quel tratto.';
-  return `<div class="dockin pad"><p class="hint"><b>Passo 1 di 2 · Scala.</b> ${t}</p><div class="tools">${n===2?'<button type="button" class="btn pri" data-act="calask">Scrivi la misura</button>':''}${n>0?'<button type="button" class="btn" data-act="calreset">Rifai i punti</button>':''}<button type="button" class="btn" data-act="calrot">Ruota foto</button><button type="button" class="btn" data-act="calskip">Salta</button></div></div>`;
+  return `<div class="dockin pad"><p class="hint"><b>Passo 1 di 2 · Scala.</b> ${t}</p><div class="tools"><button type="button" class="btn pri" data-act="autotrace">Riconosci i muri da solo</button>${n===2?'<button type="button" class="btn" data-act="calask">Scrivi la misura</button>':''}${n>0?'<button type="button" class="btn" data-act="calreset">Rifai i punti</button>':''}<button type="button" class="btn" data-act="calrot">Ruota foto</button><button type="button" class="btn" data-act="calskip">Salta</button></div></div>`;
 }
 function calTap(d){
   const c=ui.cal;
@@ -1613,20 +1619,21 @@ function calTap(d){
   render();renderDock();
   if(c.pts.length===2) setTimeout(calAsk,150);
 }
-function calAsk(){
+function calAsk(ttl){
   const c=ui.cal;
   if(!c||c.pts.length<2||!$('#modal').hidden) return;
   const a=c.pts[0],b=c.pts[1],dcur=Math.hypot(b.x-a.x,b.y-a.y);
   if(dcur<0.05){c.pts=[];render();renderDock();toast('I due punti sono troppo vicini: riprova.');return;}
-  openModal({title:'Quanto misura quel tratto?',text:'Scrivi la misura reale tra i due punti che hai toccato, per esempio la lunghezza di un muro.',ok:'Imposta scala',fields:[{label:'Misura reale',value:'',suffix:'m'}],onOk:v=>{
+  openModal({title:(typeof ttl==='string'&&ttl)||'Quanto misura quel tratto?',text:ui.cal.auto?'Guarda la foto: scrivi la misura reale di quel lato. Da questa tutto il disegno prende le giuste dimensioni.':'Scrivi la misura reale tra i due punti che hai toccato, per esempio la lunghezza di un muro.',ok:'Imposta scala',fields:[{label:'Misura reale',value:'',suffix:'m'}],onOk:v=>{
     const L=parseNum(v[0]);
     if(!(L>=0.2&&L<=100)) return 'Scrivi una misura tra 0,2 e 100 metri, ad esempio 4,20.';
     const r=R(),bg=r.bg;
     if(!bg||!ui.cal) return;
     const k=L/dcur,mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
     bg.w0*=k;bg.x=mx+(bg.x-mx)*k;bg.y=my+(bg.y-my)*k;
-    ui.cal=null;save();fit();renderDock();
-    setTimeout(()=>toast('Scala impostata. Passo 2: tocca gli angoli della stanza sulla foto per ricalcare i muri.'),50);
+    if(ui.cal.auto){const sc=q=>{q.x=rnd(mx+(q.x-mx)*k);q.y=rnd(my+(q.y-my)*k);};r.pts.forEach(sc);r.walls.forEach(w=>{sc(w.a);sc(w.b);});}
+    const was=ui.cal.auto;ui.cal=null;save();fit();renderDock();
+    setTimeout(()=>toast(was?'Fatto: il disegno ha le misure giuste. Se qualcosa non torna, trascina gli angoli o i muri.':'Scala impostata. Passo 2: tocca gli angoli della stanza sulla foto per ricalcare i muri.'),50);
   }});
 }
 /* Mano libera: da un tratto del dito a una stanza con muri dritti. */
@@ -1686,7 +1693,7 @@ function processFree(raw){
 }
 function setMode(m){
   dropEmptyTxt(null);ui.selTxt=null;
-  ui.mode=m;ui.sel=null;ui.wallDraw=null;ui.selWall=null;ui.selOp=null;ui.bgEd=false;ui.rpEd=false;ui.rpEd=false;ui.free=false;ui.cal=null;ui.freeLine=null;
+  ui.mode=m;ui.zone=null;ui.sel=null;ui.wallDraw=null;ui.selWall=null;ui.selOp=null;ui.bgEd=false;ui.rpEd=false;ui.rpEd=false;ui.free=false;ui.cal=null;ui.freeLine=null;
   document.querySelectorAll('[data-mode]').forEach(b=>{const on=b.dataset.mode===m;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');});
   renderDock();render();
 }
@@ -1716,7 +1723,7 @@ function toolsHtml(){
   let hint,btn='';
   if(tab==='muri'){
     hint=sw?'Tramezza selezionata. Trascina le estremità o cambia la misura.':'Trascina gli angoli: si bloccano a 90° e 180°. Tocca la misura di un muro per scrivere i metri. Doppio tocco su una linea: aggiunge un punto.';
-    btn=B('addwall','Aggiungi tramezza','pri')+(sw?B('wallmeas','Misura tramezza')+B('walldel','Elimina tramezza','danger'):'')+B('measures','Da misure')+B('reset','Ricomincia');
+    btn=B('addwall','Aggiungi tramezza','pri')+B('addwalld','Tramezza tratteggiata')+(sw?B('wallmeas','Misura tramezza')+B('walldash',sw.ds?'Rendi piena':'Rendi tratteggiata')+B('walldel','Elimina tramezza','danger'):'')+(r.closed?B('zone','Colora una stanza'):'')+B('measures','Da misure')+B('reset','Ricomincia');
   }else if(tab==='aperture'){
     hint='Le porte e le finestre si trascinano lungo i muri e li seguono se li sposti. Toccane una per cambiarne larghezza e apertura.';
     btn=B('door','Aggiungi porta','pri')+B('window','Aggiungi finestra');
@@ -1841,6 +1848,7 @@ function renderDock(){
   else if(tx){dock.className='';dock.innerHTML=textPanelHtml(tx);lastSel=null;}
   else if(ui.mode==='room'&&ui.cal){dock.className='';dock.innerHTML=calPanelHtml();lastSel=null;}
   else if(ui.mode==='room'&&ui.free){dock.className='';dock.innerHTML=`<div class="dockin pad"><p class="hint"><b>Mano libera.</b> Disegna col dito la forma della stanza con un solo tratto, tornando vicino al punto di partenza. Poi l’app la rende dritta, con angoli a 90°. Con due dita puoi ingrandire.</p><div class="tools"><button type="button" class="btn" data-act="freestop">Annulla</button></div></div>`;lastSel=null;}
+  else if(ui.mode==='room'&&ui.zone){dock.className='';dock.innerHTML=zonePanelHtml();lastSel=null;}
   else if(ui.mode==='room'&&ui.rpEd){dock.className='';dock.innerHTML=rpPanelHtml();lastSel=null;}
   else if(ui.mode==='room'&&ui.bgEd){dock.className='';dock.innerHTML=bgPanelHtml();lastSel=null;}
   else if(op){dock.className='';dock.innerHTML=opPanelHtml(op);lastSel=null;}
@@ -1960,6 +1968,7 @@ dock.addEventListener('click',e=>{
     f.rot=Math.round(np.a)%360;const di=$('#rotDeg');if(di) di.value=f.rot;save();render();return;
   }
   if(b.id==='delF'&&f){twoTap(b,'Tocca ancora per eliminare',()=>{kidsOf(r,f).forEach(k=>{if(f.par) k.par=f.par;else{delete k.par;k.x=snap(f.x+0.2);k.y=snap(f.y+0.2);}});r.furn=r.furn.filter(x=>x.id!==f.id);save();renderInfo();select(null);});return;}
+  if(b.dataset.zc!==undefined&&ui.zone){ui.zone.c=+b.dataset.zc;renderDock();return;}
   const a=b.dataset.act;
   if(a==='undo'){r.pts.pop();save();render();renderInfo();renderDock();}
   else if(a==='close'){closeRoom();}
@@ -1971,10 +1980,14 @@ dock.addEventListener('click',e=>{
   else if(a==='freestop'){ui.free=false;ui.freeLine=null;renderDock();render();}
   else if(a==='calreset'){if(ui.cal) ui.cal.pts=[];render();renderDock();}
   else if(a==='calask'){calAsk();}
+  else if(a==='autotrace'){planAuto();}
   else if(a==='calrot'){if(r.bg){r.bg.rot=((r.bg.rot||0)+90)%360;save();fit();}}
   else if(a==='calskip'){ui.cal=null;renderDock();render();toast('Va bene. Ricalca i muri toccando gli angoli. La scala si può cambiare dopo, da «Foto di sfondo».');}
   else if(a==='bg'){ui.bgEd=true;ui.selWall=null;ui.selOp=null;renderDock();render();}
-  else if(a==='addwall'){ui.wallDraw={p:null};ui.selWall=null;render();renderDock();}
+  else if(a==='addwall'||a==='addwalld'){ui.wallDraw={p:null,ds:a==='addwalld'};ui.selWall=null;render();renderDock();}
+  else if(a==='walldash'){const w=r.walls.find(x=>x.id===ui.selWall);if(w){if(w.ds) delete w.ds;else w.ds=1;save();render();renderDock();}}
+  else if(a==='zone'){ui.zone={c:0};ui.wallDraw=null;ui.selWall=null;ui.selOp=null;render();renderDock();}
+  else if(a==='zoneoff'){ui.zone=null;render();renderDock();}
   else if(a==='wallstop'){ui.wallDraw=null;render();renderDock();}
   else if(a==='wallundo'){if(ui.wallDraw) ui.wallDraw.p=null;render();renderDock();}
   else if(a==='wallmeas'){editTz();}
@@ -2138,7 +2151,7 @@ $('#results').addEventListener('click',e=>{
 
 /* ---------- barra, stanze, zoom ---------- */
 document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
-$('#roomSel').addEventListener('change',e=>{S.cur=e.target.value;ui.free=false;ui.cal=null;ui.freeLine=null;ui.sel=null;ui.selTxt=null;ui.wallDraw=null;ui.selWall=null;ui.selOp=null;ui.bgEd=false;ui.rpEd=false;save();renderInfo();renderDock();fit();});
+$('#roomSel').addEventListener('change',e=>{S.cur=e.target.value;ui.zone=null;ui.free=false;ui.cal=null;ui.freeLine=null;ui.sel=null;ui.selTxt=null;ui.wallDraw=null;ui.selWall=null;ui.selOp=null;ui.bgEd=false;ui.rpEd=false;save();renderInfo();renderDock();fit();});
 $('#newRoom').addEventListener('click',()=>{
   openModal({title:'Nuova stanza',ok:'Crea',fields:[{label:'Nome della stanza',value:'',mode:'text',max:30}],onOk:v=>{
     const name=v[0].trim();
@@ -2433,6 +2446,320 @@ function phrasePreview(text,fid0){
     const sl=e.target.closest&&e.target.closest('select[data-phg]');if(!sl) return;
     const v=sl.value.split('|');groups[+sl.dataset.phg].rid=v[0]||'';groups[+sl.dataset.phg].fid=v[1]||'';
   };
+}
+/* ---------- zone colorate (stanze chiuse da muri) ---------- */
+const ZC=['#e8a0a0','#f2c27b','#f2e27b','#a9d8a0','#8fd3d1','#9bbbe8','#c4a6e8','#e8a6cf'];
+const ZN=['Rosso','Arancio','Giallo','Verde','Turchese','Azzurro','Viola','Rosa'];
+const zCache=new Map();
+function zGeom(r){return JSON.stringify([r.closed,r.pts,r.walls.map(w=>[w.a,w.b]),r.ops.filter(o=>o.k==='porta').map(o=>[o.x,o.y,o.w,o.a])]);}
+function zoneRegion(r,gk,sx,sy){
+  const key=gk+'|'+sx+','+sy;
+  if(zCache.has(key)) return zCache.get(key);
+  let out=null;
+  if(r.closed&&r.pts.length>=3){
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+    r.pts.forEach(p=>{x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y);});
+    x0-=0.3;y0-=0.3;x1+=0.3;y1+=0.3;
+    let cs=0.05;
+    while(((x1-x0)/cs+2)*((y1-y0)/cs+2)>400000) cs*=1.5;
+    const nx=Math.ceil((x1-x0)/cs)+1,ny=Math.ceil((y1-y0)/cs)+1;
+    const bar=new Uint8Array(nx*ny);
+    const cx=x=>Math.round((x-x0)/cs),cy=y=>Math.round((y-y0)/cs);
+    const line=(ax,ay,bx,by)=>{
+      let X=cx(ax),Y=cy(ay);const X2=cx(bx),Y2=cy(by);
+      const dx=Math.abs(X2-X),dy=-Math.abs(Y2-Y),sx2=X<X2?1:-1,sy2=Y<Y2?1:-1;let e=dx+dy;
+      for(let g=0;g<100000;g++){
+        for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const u=X+i,v=Y+j;if(u>=0&&v>=0&&u<nx&&v<ny) bar[v*nx+u]=1;}
+        if(X===X2&&Y===Y2) break;
+        const e2=2*e;if(e2>=dy){e+=dy;X+=sx2;}if(e2<=dx){e+=dx;Y+=sy2;}
+      }
+    };
+    const n=r.pts.length;
+    for(let i=0;i<n;i++){const a=r.pts[i],b=r.pts[(i+1)%n];line(a.x,a.y,b.x,b.y);}
+    r.walls.forEach(w=>line(w.a.x,w.a.y,w.b.x,w.b.y));
+    r.ops.forEach(o=>{if(o.k!=='porta') return;const a=(o.a||0)*Math.PI/180,c=Math.cos(a)*o.w/2,s=Math.sin(a)*o.w/2;line(o.x-c,o.y-s,o.x+c,o.y+s);});
+    const sxc=cx(sx),syc=cy(sy);
+    if(sxc<0||syc<0||sxc>=nx||syc>=ny||bar[syc*nx+sxc]){out={blocked:true};}
+    else{
+      const fill=new Uint8Array(nx*ny),st=[syc*nx+sxc];fill[st[0]]=1;let leak=false;
+      while(st.length){
+        const k=st.pop(),x=k%nx,y=(k-x)/nx;
+        if(x===0||y===0||x===nx-1||y===ny-1){leak=true;break;}
+        const nb=[k-1,k+1,k-nx,k+nx];
+        for(let q=0;q<4;q++){const m=nb[q];if(!fill[m]&&!bar[m]){fill[m]=1;st.push(m);}}
+      }
+      if(leak) out={leak:true};
+      else{
+        const g=new Uint8Array(fill);
+        for(let k=0;k<fill.length;k++){if(fill[k]){const x=k%nx;if(x>0&&bar[k-1]) g[k-1]=1;if(x<nx-1&&bar[k+1]) g[k+1]=1;if(bar[k-nx]) g[k-nx]=1;if(bar[k+nx]) g[k+nx]=1;}}
+        const rects=[];let open=new Map();
+        for(let y=0;y<=ny;y++){
+          const runs=[];
+          if(y<ny){let s=-1;for(let x=0;x<=nx;x++){const on=x<nx&&g[y*nx+x];if(on&&s<0) s=x;else if(!on&&s>=0){runs.push([s,x]);s=-1;}}}
+          const nxt=new Map();
+          runs.forEach(([a,b])=>{const k2=a+'_'+b,o=open.get(k2);if(o){nxt.set(k2,o);open.delete(k2);}else nxt.set(k2,{a,b,y0:y});});
+          open.forEach(o=>rects.push([x0+(o.a-0.5)*cs,y0+(o.y0-0.5)*cs,x0+(o.b-0.5)*cs,y0+(y-0.5)*cs]));
+          open=nxt;
+        }
+        out={rects,g,x0,y0,cs,nx,ny};
+      }
+    }
+  }
+  if(zCache.size>30) zCache.delete(zCache.keys().next().value);
+  zCache.set(key,out);return out;
+}
+function zHas(rg,x,y){
+  if(!rg||!rg.g) return false;
+  const cx=Math.round((x-rg.x0)/rg.cs),cy=Math.round((y-rg.y0)/rg.cs);
+  return cx>=0&&cy>=0&&cx<rg.nx&&cy<rg.ny&&!!rg.g[cy*rg.nx+cx];
+}
+function zonesSvg(r){
+  if(!r.zones||!r.zones.length||!r.closed) return '';
+  const gk=zGeom(r);let h='';
+  r.zones.forEach(z=>{
+    const rg=zoneRegion(r,gk,z.x,z.y);if(!rg||!rg.rects) return;
+    let d='';
+    rg.rects.forEach(q=>{const A=w2s(q[0],q[1]),B=w2s(q[2],q[1]),C=w2s(q[2],q[3]),D=w2s(q[0],q[3]);d+=`M${A[0].toFixed(1)} ${A[1].toFixed(1)}L${B[0].toFixed(1)} ${B[1].toFixed(1)}L${C[0].toFixed(1)} ${C[1].toFixed(1)}L${D[0].toFixed(1)} ${D[1].toFixed(1)}Z`;});
+    h+=`<path class="zn" d="${d}" style="fill:${ZC[z.c]||ZC[0]}"/>`;
+  });
+  return h;
+}
+function zoneTap(d){
+  const r=R(),z=ui.zone;if(!z) return;
+  if(!r.zones) r.zones=[];
+  const gk=zGeom(r),p=d.w;
+  const before=r.zones.length;
+  r.zones=r.zones.filter(q=>!zHas(zoneRegion(r,gk,q.x,q.y),p.x,p.y));
+  if(z.c<0){
+    if(r.zones.length===before){toast('Qui non c’è nessun colore da togliere.');return;}
+    save();render();return;
+  }
+  const rg=zoneRegion(r,gk,p.x,p.y);
+  if(!rg||rg.blocked){r.zones=r.zones.slice();toast('Tocca dentro la stanza, non sopra un muro.');if(r.zones.length!==before){save();render();}return;}
+  if(rg.leak){toast('Questa stanza non è chiusa: manca un muro o una porta. Controlla gli spazi vuoti tra i muri.');return;}
+  r.zones.push({id:uid(),x:rnd(p.x),y:rnd(p.y),c:z.c});
+  save();render();
+}
+function zonePanelHtml(){
+  const z=ui.zone;
+  return `<div class="dockin pad"><p class="hint"><b>Colora una stanza.</b> Scegli un colore e tocca dentro una stanza chiusa dai muri. Le porte contano come chiuse. Per togliere il colore scegli ⌀ e tocca la stanza.</p><div class="zcol">${ZC.map((c,i)=>`<button type="button" class="zc${z.c===i?' on':''}" data-zc="${i}" style="background:${c}" aria-label="${ZN[i]}" aria-pressed="${z.c===i}"></button>`).join('')}<button type="button" class="zc zx${z.c===-1?' on':''}" data-zc="-1" aria-label="Togli il colore" aria-pressed="${z.c===-1}">⌀</button></div><div class="tools"><button type="button" class="btn pri" data-act="zoneoff">Fatto</button></div></div>`;
+}
+/* ---------- riconoscimento automatico dei muri da una piantina ---------- */
+async function planTrace(src){
+  const im=new Image();
+  await new Promise((ok,ko)=>{im.onload=ok;im.onerror=ko;im.src=src;});
+  const k0=Math.min(1,900/Math.max(im.width,im.height)),w=Math.max(20,Math.round(im.width*k0)),h=Math.max(20,Math.round(im.height*k0));
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+  const cx=cv.getContext('2d',{willReadFrequently:true});
+  cx.fillStyle='#fff';cx.fillRect(0,0,w,h);cx.drawImage(im,0,0,w,h);
+  const px=cx.getImageData(0,0,w,h).data,N=w*h,M=Math.max(w,h);
+  const gray=new Uint8Array(N),hist=new Array(256).fill(0);
+  for(let i=0;i<N;i++){const g=(px[i*4]*299+px[i*4+1]*587+px[i*4+2]*114)/1000|0;gray[i]=g;hist[g]++;}
+  /* soglia di Otsu */
+  let sum=0;for(let t=0;t<256;t++) sum+=t*hist[t];
+  let wB=0,sB=0,best=0,thr=128;
+  for(let t=0;t<256;t++){wB+=hist[t];if(!wB) continue;const wF=N-wB;if(!wF) break;sB+=t*hist[t];const mB=sB/wB,mF=(sum-sB)/wF,v=wB*wF*(mB-mF)*(mB-mF);if(v>best){best=v;thr=t;}}
+  thr=Math.min(thr,170);
+  let dark=new Uint8Array(N);for(let i=0;i<N;i++) dark[i]=gray[i]<=thr?1:0;
+  const box=(a,r,mode)=>{ /* erosione (mode 0) o dilatazione (mode 1) quadrata di raggio r, separabile */
+    const t=new Uint8Array(N),o=new Uint8Array(N);
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){let v=mode?0:1;for(let d=-r;d<=r;d++){const xx=x+d;const q=(xx<0||xx>=w)?(mode?0:0):a[y*w+xx];if(mode){if(q){v=1;break;}}else if(!q){v=0;break;}}t[y*w+x]=v;}
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){let v=mode?0:1;for(let d=-r;d<=r;d++){const yy=y+d;const q=(yy<0||yy>=h)?0:t[yy*w+x];if(mode){if(q){v=1;break;}}else if(!q){v=0;break;}}o[y*w+x]=v;}
+    return o;
+  };
+  /* toglie linee sottili e scritte */
+  const open=box(box(dark,1,0),1,1);
+  /* componenti connesse */
+  const lab=new Int32Array(N).fill(-1),comps=[];
+  const st=new Int32Array(N);
+  for(let s=0;s<N;s++){
+    if(!open[s]||lab[s]>=0) continue;
+    let sp=0,area=0;st[sp++]=s;lab[s]=comps.length;
+    let x0=w,y0=h,x1=0,y1=0;
+    while(sp){
+      const p=st[--sp],x=p%w,y=(p-x)/w;area++;
+      if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+        if(!dx&&!dy) continue;const xx=x+dx,yy=y+dy;if(xx<0||yy<0||xx>=w||yy>=h) continue;
+        const q=yy*w+xx;if(open[q]&&lab[q]<0){lab[q]=comps.length;st[sp++]=q;}
+      }
+    }
+    comps.push({area,x0,y0,x1,y1});
+  }
+  if(!comps.length) return null;
+  let mi=0;comps.forEach((c,i)=>{if(c.area>comps[mi].area) mi=i;});
+  const main=comps[mi];
+  if(main.area<N*0.002) return null;
+  const mask=new Uint8Array(N);
+  for(let i=0;i<N;i++){const l=lab[i];if(l>=0&&(l===mi||comps[l].area>=Math.max(N*0.003,main.area*0.04))) mask[i]=1;}
+  const mm=new Uint8Array(N);for(let i=0;i<N;i++) mm[i]=lab[i]===mi?1:0;
+  /* spessore dei muri: mediana delle lunghezze dei tratti scuri stretti */
+  const runs=[];
+  for(let y=0;y<h;y+=2){let s=-1;for(let x=0;x<=w;x++){const on=x<w&&mm[y*w+x];if(on&&s<0) s=x;else if(!on&&s>=0){const l=x-s;if(l<=M*0.04) runs.push(l);s=-1;}}}
+  for(let x=0;x<w;x+=2){let s=-1;for(let y=0;y<=h;y++){const on=y<h&&mm[y*w+x];if(on&&s<0) s=y;else if(!on&&s>=0){const l=y-s;if(l<=M*0.04) runs.push(l);s=-1;}}}
+  runs.sort((a,b)=>a-b);
+  const tw=Math.max(2,runs.length?runs[Math.floor(runs.length/2)]:3);
+  /* sagoma piena: riempie l'interno racchiuso dai muri */
+  const out=new Uint8Array(N),stk=[];
+  const push=(x,y)=>{const p=y*w+x;if(!mm[p]&&!out[p]){out[p]=1;stk.push(p);}};
+  for(let x=0;x<w;x++){push(x,0);push(x,h-1);}for(let y=0;y<h;y++){push(0,y);push(w-1,y);}
+  while(stk.length){const p=stk.pop(),x=p%w,y=(p-x)/w;if(x>0)push(x-1,y);if(x<w-1)push(x+1,y);if(y>0)push(x,y-1);if(y<h-1)push(x,y+1);}
+  let sil=new Uint8Array(N),sa=0;for(let i=0;i<N;i++){sil[i]=out[i]?0:1;sa+=sil[i];}
+  if(sa>N*0.97||sa<N*0.01) return null;
+  /* linea al centro dei muri: la sagoma meno mezzo spessore */
+  const rr=Math.max(1,Math.round(tw/2));
+  let sil2=box(sil,rr,0),sa2=0;for(let i=0;i<N;i++) sa2+=sil2[i];
+  if(sa2<sa*0.2){sil2=sil;}
+  /* contorno: lati dei pixel che separano dentro e fuori */
+  const nxt=new Map(),V=(x,y)=>y*(w+1)+x;
+  const addE=(a,b)=>{let l=nxt.get(a);if(!l){l=[];nxt.set(a,l);}l.push(b);};
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    if(!sil2[y*w+x]) continue;
+    if(y===0||!sil2[(y-1)*w+x]) addE(V(x,y),V(x+1,y));
+    if(x===w-1||!sil2[y*w+x+1]) addE(V(x+1,y),V(x+1,y+1));
+    if(y===h-1||!sil2[(y+1)*w+x]) addE(V(x+1,y+1),V(x,y+1));
+    if(x===0||!sil2[y*w+x-1]) addE(V(x,y+1),V(x,y));
+  }
+  const loops=[];
+  for(const [s0] of nxt){
+    if(!nxt.get(s0)||!nxt.get(s0).length) continue;
+    const pts=[];let cur=s0,g=0;
+    while(g++<400000){
+      const l=nxt.get(cur);if(!l||!l.length) break;
+      const nx=l.pop();pts.push(cur);cur=nx;if(cur===s0) break;
+    }
+    if(pts.length>8) loops.push(pts);
+  }
+  if(!loops.length) return null;
+  const ar=pts=>{let a=0;for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[(i+1)%pts.length];const px1=p%(w+1),py1=(p-px1)/(w+1),qx=q%(w+1),qy=(q-qx)/(w+1);a+=px1*qy-qx*py1;}return Math.abs(a/2);};
+  loops.sort((a,b)=>ar(b)-ar(a));
+  let P=loops[0].map(v=>{const x=v%(w+1);return {x,y:(v-x)/(w+1)};});
+  /* toglie i punti sulla stessa retta */
+  P=P.filter((p,i)=>{const a=P[(i+P.length-1)%P.length],b=P[(i+1)%P.length];return !((a.x===p.x&&p.x===b.x)||(a.y===p.y&&p.y===b.y));});
+  /* semplifica */
+  const eps=Math.max(3,M*0.011);
+  const rdpO=(Q,e)=>{
+    const keep=new Array(Q.length).fill(false);keep[0]=keep[Q.length-1]=true;const s=[[0,Q.length-1]];
+    while(s.length){const [i,j]=s.pop();const a=Q[i],b=Q[j],dx=b.x-a.x,dy=b.y-a.y,l=Math.hypot(dx,dy)||1e-9;let m=-1,md=0;
+      for(let q=i+1;q<j;q++){const d=Math.abs((Q[q].x-a.x)*dy-(Q[q].y-a.y)*dx)/l;if(d>md){md=d;m=q;}}
+      if(m>=0&&md>e){keep[m]=true;s.push([i,m],[m,j]);}}
+    return Q.filter((_,i)=>keep[i]);
+  };
+  let li=0;P.forEach((p,i)=>{if(p.x<P[li].x||(p.x===P[li].x&&p.y<P[li].y)) li=i;});
+  P=P.slice(li).concat(P.slice(0,li));
+  let far=0,fd=0;P.forEach((p,i)=>{const d=Math.hypot(p.x-P[0].x,p.y-P[0].y);if(d>fd){fd=d;far=i;}});
+  const A1=rdpO(P.slice(0,far+1),eps),A2=rdpO(P.slice(far).concat([P[0]]),eps);
+  let Q=A1.concat(A2.slice(1,-1));
+  if(Q.length<4) Q=[{x:0,y:0},{x:1,y:0},{x:1,y:1},{x:0,y:1}].map((p,i)=>i?p:p);
+  /* angoli retti: ogni lato diventa orizzontale o verticale */
+  const mkGroups=Q=>{
+    const g=[];
+    for(let i=0;i<Q.length;i++){const a=Q[i],b=Q[(i+1)%Q.length],o=Math.abs(b.x-a.x)>=Math.abs(b.y-a.y)?'H':'V';
+      const L=Math.hypot(b.x-a.x,b.y-a.y);
+      if(g.length&&g[g.length-1].o===o){const t=g[g.length-1];t.pts.push(b);t.L+=L;t.s+=(o==='H'?(a.y+b.y)/2:(a.x+b.x)/2)*L;}
+      else g.push({o,pts:[a,b],L,s:(o==='H'?(a.y+b.y)/2:(a.x+b.x)/2)*L});
+    }
+    if(g.length>1&&g[0].o===g[g.length-1].o){const t=g.pop();g[0].L+=t.L;g[0].s+=t.s;}
+    return g;
+  };
+  let G=mkGroups(Q);
+  const minE=Math.max(eps*1.6,M*0.02);
+  for(let it=0;it<50&&G.length>4;it++){
+    let mi2=-1,ml=1e9;G.forEach((g,i)=>{if(g.L<ml){ml=g.L;mi2=i;}});
+    if(ml>=minE) break;
+    const n=G.length,a=(mi2+n-1)%n,b=(mi2+1)%n;
+    const ga=G[a],gb=G[b];
+    const merged={o:ga.o,pts:[],L:ga.L+gb.L,s:ga.s+gb.s};
+    const rest=[];for(let q=0;q<n;q++) if(q!==a&&q!==b&&q!==mi2) rest.push(G[q]);
+    const pos=Math.min(a,b);
+    rest.splice(Math.min(pos,rest.length),0,merged);
+    G=rest;
+    if(G.length%2) break;
+  }
+  let poly;
+  if(G.length<4||G.length%2||G.some((g,i)=>g.o===G[(i+1)%G.length].o)){
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;P.forEach(p=>{x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);y0=Math.min(y0,p.y);y1=Math.max(y1,p.y);});
+    poly=[{x:x0,y:y0},{x:x1,y:y0},{x:x1,y:y1},{x:x0,y:y1}];
+  }else{
+    const co=G.map(g=>g.s/g.L);
+    poly=[];
+    for(let i=0;i<G.length;i++){const a=G[i],b=G[(i+1)%G.length],ca=co[i],cb=co[(i+1)%G.length];poly.push(a.o==='H'?{x:cb,y:ca}:{x:ca,y:cb});}
+  }
+  /* tramezze: tratti dritti di muro dentro la sagoma, lontani dal bordo */
+  const inner=box(sil,Math.max(2,Math.round(tw*1.6)),0);
+  const m2=new Uint8Array(N);for(let i=0;i<N;i++) m2[i]=(mask[i]&&inner[i])?1:0;
+  const Lmin=Math.max(10,M*0.05);
+  const segs=[];
+  const scan=(vert)=>{
+    const A=vert?w:h,B=vert?h:w;let act=[];
+    for(let a=0;a<=A;a++){
+      const runsA=[];
+      if(a<A){let s=-1;for(let b=0;b<=B;b++){const on=b<B&&m2[vert?b*w+a:a*w+b];if(on&&s<0) s=b;else if(!on&&s>=0){if(b-s>=Lmin) runsA.push([s,b-1]);s=-1;}}}
+      const nact=[];
+      runsA.forEach(([s,e])=>{
+        let g=act.find(q=>q.last===a-1&&Math.min(e,q.e)-Math.max(s,q.s)>=0.6*Math.min(e-s,q.e-q.s));
+        if(g){g.last=a;g.a1=a;g.s=Math.min(g.s,s);g.e=Math.max(g.e,e);nact.push(g);act=act.filter(q=>q!==g);}
+        else nact.push({a0:a,a1:a,last:a,s,e});
+      });
+      act.forEach(g=>{
+        const th=g.a1-g.a0+1;
+        if(th>=Math.max(1,tw*0.4)&&th<=tw*3.2&&g.e-g.s+1>=Lmin){const c=(g.a0+g.a1)/2;segs.push(vert?{o:'V',c,s:g.s,e:g.e}:{o:'H',c,s:g.s,e:g.e});}
+      });
+      act=nact;
+    }
+    act.forEach(g=>{const th=g.a1-g.a0+1;if(th>=Math.max(1,tw*0.4)&&th<=tw*3.2&&g.e-g.s+1>=Lmin){const c=(g.a0+g.a1)/2;segs.push(vert?{o:'V',c,s:g.s,e:g.e}:{o:'H',c,s:g.s,e:g.e});}});
+  };
+  scan(false);scan(true);
+  /* unisce tratti sulla stessa linea */
+  let merged=[];
+  segs.sort((a,b)=>a.o.localeCompare(b.o)||a.c-b.c||a.s-b.s);
+  segs.forEach(sg=>{
+    const m=merged.find(q=>q.o===sg.o&&Math.abs(q.c-sg.c)<=tw*1.2&&sg.s<=q.e+tw*2&&sg.e>=q.s-tw*2);
+    if(m){m.c=(m.c+sg.c)/2;m.s=Math.min(m.s,sg.s);m.e=Math.max(m.e,sg.e);}else merged.push(Object.assign({},sg));
+  });
+  /* attacca le estremità al contorno e agli altri muri */
+  const edgesV=[],edgesH=[];
+  for(let i=0;i<poly.length;i++){const a=poly[i],b=poly[(i+1)%poly.length];if(Math.abs(a.x-b.x)<1e-6) edgesV.push({c:a.x,s:Math.min(a.y,b.y),e:Math.max(a.y,b.y)});else edgesH.push({c:a.y,s:Math.min(a.x,b.x),e:Math.max(a.x,b.x)});}
+  const lim=tw*3+2;
+  const snapEnd=(sg,end)=>{
+    const v=sg.o==='H'?edgesV.concat(merged.filter(q=>q!==sg&&q.o==='V').map(q=>({c:q.c,s:q.s-lim,e:q.e+lim}))):edgesH.concat(merged.filter(q=>q!==sg&&q.o==='H').map(q=>({c:q.c,s:q.s-lim,e:q.e+lim})));
+    let bst=null,bd=lim;
+    v.forEach(q=>{if(sg.c<q.s-1||sg.c>q.e+1) return;const d=Math.abs(q.c-sg[end]);if(d<bd){bd=d;bst=q;}});
+    if(bst) sg[end]=bst.c;
+  };
+  merged.forEach(sg=>{snapEnd(sg,'s');snapEnd(sg,'e');});
+  /* scarta i tratti che stanno sul contorno */
+  merged=merged.filter(sg=>sg.e-sg.s>=Lmin&&!(sg.o==='H'?edgesH:edgesV).some(q=>Math.abs(q.c-sg.c)<=tw*2&&sg.s>=q.s-tw*2&&sg.e<=q.e+tw*2));
+  const walls=merged.map(sg=>sg.o==='H'?{a:{x:sg.s,y:sg.c},b:{x:sg.e,y:sg.c}}:{a:{x:sg.c,y:sg.s},b:{x:sg.c,y:sg.e}});
+  const nrm=p=>({u:p.x/w,v:p.y/h});
+  return {poly:poly.map(nrm),walls:walls.map(q=>({a:nrm(q.a),b:nrm(q.b)})),tw:tw/M,rect:poly.length===4,w,h};
+}
+function planAutoApply(tr){
+  const r=R(),bg=r.bg;if(!bg||!tr) return false;
+  const bw=bg.w0*bg.s/100,bh=bw/bg.ar,a=(bg.rot||0)*Math.PI/180,co=Math.cos(a),si=Math.sin(a);
+  const W2=q=>{const lx=(q.u-0.5)*bw,ly=(q.v-0.5)*bh;return {x:rnd(bg.x+lx*co-ly*si),y:rnd(bg.y+lx*si+ly*co)};};
+  r.pts=tr.poly.map(W2);r.closed=true;
+  r.walls=tr.walls.map(q=>({id:uid(),a:W2(q.a),b:W2(q.b)}));
+  r.ops=[];r.zones=[];
+  return true;
+}
+async function planAuto(){
+  const r=R();if(!r.bg||!r.bg.img) return;
+  toast('Cerco i muri nella foto…');
+  await new Promise(ok=>setTimeout(ok,50));
+  let tr=null;
+  try{tr=await planTrace(r.bg.img);}catch(_){}
+  if(!tr){toast('Non sono riuscito a riconoscere i muri in questa foto. Prova a ricalcarli toccando gli angoli.');return;}
+  forceSnap();
+  planAutoApply(tr);
+  /* scala: il lato più lungo del perimetro */
+  let bi=0,bl=0;for(let i=0;i<r.pts.length;i++){const p=r.pts[i],q=r.pts[(i+1)%r.pts.length],l=Math.hypot(q.x-p.x,q.y-p.y);if(l>bl){bl=l;bi=i;}}
+  const p=r.pts[bi],q=r.pts[(bi+1)%r.pts.length];
+  ui.cal={pts:[{x:p.x,y:p.y},{x:q.x,y:q.y}],auto:true};
+  setMode('room');ui.cal={pts:[{x:p.x,y:p.y},{x:q.x,y:q.y}],auto:true};
+  save();fit();renderInfo();renderDock();
+  toast(tr.rect&&tr.walls.length===0?'Ho riconosciuto una stanza rettangolare. Ora la scala.':`Riconosciuti il perimetro e ${tr.walls.length} muri interni. Ora la scala.`);
+  setTimeout(()=>{calAsk('Quanto misura il lato evidenziato (il più lungo)?');},500);
 }
 function goTo(rid,fid){
   closeM();
