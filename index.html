@@ -2501,6 +2501,19 @@ function zoneRegion(r,gk,sx,sy){
     r.walls.forEach(w=>line(w.a.x,w.a.y,w.b.x,w.b.y));
     r.ops.forEach(o=>{if(o.k!=='porta') return;const a=(o.a||0)*Math.PI/180,c=Math.cos(a)*o.w/2,s=Math.sin(a)*o.w/2;line(o.x-c,o.y-s,o.x+c,o.y+s);});
     const sxc=cx(sx),syc=cy(sy);
+    /* varchi (porte non disegnate, aperture): li richiude, con il raggio più grande che lascia libero il punto toccato */
+    const winP=(a,R,all)=>{
+      const t=new Uint8Array(nx*ny),o=new Uint8Array(nx*ny),need=2*R+1,hit=all?c=>c===need:c=>c>0,oob=all?1:0;
+      for(let y=0;y<ny;y++){const b0=y*nx,gt=x=>(x<0||x>=nx)?oob:a[b0+x];let c=0;for(let d=-R;d<=R;d++) c+=gt(d);
+        for(let x=0;x<nx;x++){t[b0+x]=hit(c)?1:0;c+=gt(x+R+1)-gt(x-R);}}
+      for(let x=0;x<nx;x++){const gt=y=>(y<0||y>=ny)?oob:t[y*nx+x];let c=0;for(let d=-R;d<=R;d++) c+=gt(d);
+        for(let y=0;y<ny;y++){o[y*nx+x]=hit(c)?1:0;c+=gt(y+R+1)-gt(y-R);}}
+      return o;
+    };
+    let cb=bar;
+    if(sxc>=0&&syc>=0&&sxc<nx&&syc<ny&&!bar[syc*nx+sxc]){
+      for(const m of [0.6,0.4,0.25,0.12]){const R=Math.max(1,Math.round(m/cs)),C=winP(winP(bar,R,false),R,true);if(!C[syc*nx+sxc]){cb=C;break;}}
+    }
     if(sxc<0||syc<0||sxc>=nx||syc>=ny||bar[syc*nx+sxc]){out={blocked:true};}
     else{
       const fill=new Uint8Array(nx*ny),st=[syc*nx+sxc];fill[st[0]]=1;let leak=false;
@@ -2508,7 +2521,7 @@ function zoneRegion(r,gk,sx,sy){
         const k=st.pop(),x=k%nx,y=(k-x)/nx;
         if(x===0||y===0||x===nx-1||y===ny-1){leak=true;break;}
         const nb=[k-1,k+1,k-nx,k+nx];
-        for(let q=0;q<4;q++){const m=nb[q];if(!fill[m]&&!bar[m]){fill[m]=1;st.push(m);}}
+        for(let q=0;q<4;q++){const m=nb[q];if(!fill[m]&&!cb[m]){fill[m]=1;st.push(m);}}
       }
       if(leak) out={leak:true};
       else{
@@ -2564,7 +2577,7 @@ function zoneTap(d){
 }
 function zonePanelHtml(){
   const z=ui.zone;
-  return `<div class="dockin pad"><p class="hint"><b>Colora una stanza.</b> Scegli un colore e tocca dentro una stanza chiusa dai muri. Le porte contano come chiuse. Per togliere il colore scegli ⌀ e tocca la stanza.</p><div class="zcol">${ZC.map((c,i)=>`<button type="button" class="zc${z.c===i?' on':''}" data-zc="${i}" style="background:${c}" aria-label="${ZN[i]}" aria-pressed="${z.c===i}"></button>`).join('')}<button type="button" class="zc zx${z.c===-1?' on':''}" data-zc="-1" aria-label="Togli il colore" aria-pressed="${z.c===-1}">⌀</button></div><div class="tools"><button type="button" class="btn pri" data-act="zoneoff">Fatto</button></div></div>`;
+  return `<div class="dockin pad"><p class="hint"><b>Colora una stanza.</b> Scegli un colore e tocca dentro una stanza chiusa dai muri. Porte e varchi (fino a circa un metro) contano come chiusi. Per togliere il colore scegli ⌀ e tocca la stanza.</p><div class="zcol">${ZC.map((c,i)=>`<button type="button" class="zc${z.c===i?' on':''}" data-zc="${i}" style="background:${c}" aria-label="${ZN[i]}" aria-pressed="${z.c===i}"></button>`).join('')}<button type="button" class="zc zx${z.c===-1?' on':''}" data-zc="-1" aria-label="Togli il colore" aria-pressed="${z.c===-1}">⌀</button></div><div class="tools"><button type="button" class="btn pri" data-act="zoneoff">Fatto</button></div></div>`;
 }
 /* ---------- riconoscimento automatico dei muri da una piantina ---------- */
 async function planTrace(src){
