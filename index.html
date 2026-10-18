@@ -968,7 +968,7 @@ function render(){
   r.walls.forEach(wl=>{
     const A1=w2s(wl.a.x,wl.a.y),B1=w2s(wl.b.x,wl.b.y),ax=A1[0],ay=A1[1],bx=B1[0],by=B1[1],pl=Math.hypot(bx-ax,by-ay);
     if(ui.mode==='room') h+=`<line class="tzh" data-k="wseg" data-id="${wl.id}" x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}" style="stroke-width:24"/>`;
-    if(pl>=40){
+    if(pl>=40&&ui.mode==='room'){
       const dx=(bx-ax)/pl,dy=(by-ay)/pl,c=freeAt(u=>{const o=wt/2+4+Math.abs(dy)*22+Math.abs(dx)*8;return [ax+(bx-ax)*u+dy*o,ay+(by-ay)*u-dx*o];});
       h+=`<text class="dl" x="${c[0].toFixed(1)}" y="${c[1].toFixed(1)}">${fmt2(pl/ppm)} m</text>`;
     }
@@ -976,7 +976,7 @@ function render(){
   const A=sArea(r.pts);
   perimRuns(r.pts,r.closed).forEach(ru=>{
     const len=ru.len,pl=len*ppm;
-    if(pl<40) return;
+    if(pl<40||ui.mode!=='room') return;
     const pa=P[ru.i],pc=P[(ru.i+ru.c)%n];
     const dl=Math.hypot(pc[0]-pa[0],pc[1]-pa[1])||1;
     const dx=(pc[0]-pa[0])/dl,dy=(pc[1]-pa[1])/dl;
