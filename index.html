@@ -2780,8 +2780,31 @@ async function planTrace1(src,ro){
   /* scarta i tratti che stanno sul contorno */
   merged=merged.filter(sg=>sg.e-sg.s>=Lmin&&!(sg.o==='H'?edgesH:edgesV).some(q=>Math.abs(q.c-sg.c)<=tw*2&&sg.s>=q.s-tw*2&&sg.e<=q.e+tw*2));
   const walls=merged.map(sg=>sg.o==='H'?{a:{x:sg.s,y:sg.c},b:{x:sg.e,y:sg.c}}:{a:{x:sg.c,y:sg.s},b:{x:sg.c,y:sg.e}});
+  /* porte e finestre: i varchi lungo i muri. Se nel varco corre una riga sottile è una finestra, se è vuoto è una porta */
+  const ops=[],hb=Math.max(2,Math.round(tw*0.4));
+  const hitAt=(arr,o,c,t)=>{for(let d=-hb;d<=hb;d++){const x=o==='H'?t:Math.round(c)+d,y=o==='H'?Math.round(c)+d:t;if(x>=0&&y>=0&&x<w&&y<h&&arr[y*w+x]) return true;}return false;};
+  const scanLine=(o,c,s0,e0)=>{
+    const lo=Math.max(0,Math.floor(s0)),hi=Math.min((o==='H'?w:h)-1,Math.ceil(e0));
+    let gs=-1;const gaps=[];
+    for(let t=lo;t<=hi;t++){
+      if(!hitAt(mask,o,c,t)){if(gs<0) gs=t;}
+      else{if(gs>lo) gaps.push([gs,t-1]);gs=-1;}
+    }
+    gaps.forEach(([a,b])=>{
+      const len=b-a+1;if(len<M*0.035) return;
+      let cov=0;for(let t=a;t<=b;t++) if(hitAt(dark,o,c,t)) cov++;
+      const win=cov/len>=0.75;
+      if(len>(win?M*0.26:M*0.11)) return;
+      const t=(a+b+1)/2;
+      ops.push({k:win?'finestra':'porta',o,l:len,x:o==='H'?t:c,y:o==='H'?c:t});
+    });
+  };
+  poly.forEach((a,i)=>{const b=poly[(i+1)%poly.length];if(Math.abs(a.x-b.x)<1e-6) scanLine('V',a.x,Math.min(a.y,b.y),Math.max(a.y,b.y));else scanLine('H',a.y,Math.min(a.x,b.x),Math.max(a.x,b.x));});
+  const lines=[];
+  merged.forEach(sg=>{const g=lines.find(q=>q.o===sg.o&&Math.abs(q.c-sg.c)<=tw*1.2);if(g){g.s=Math.min(g.s,sg.s);g.e=Math.max(g.e,sg.e);}else lines.push({o:sg.o,c:sg.c,s:sg.s,e:sg.e});});
+  lines.forEach(g=>scanLine(g.o,g.c,g.s,g.e));
   const nrm=p=>({u:p.x/w,v:p.y/h});
-  return {poly:poly.map(nrm),walls:walls.map(q=>({a:nrm(q.a),b:nrm(q.b)})),tw:tw/M,rect:poly.length===4,w,h};
+  return {poly:poly.map(nrm),walls:walls.map(q=>({a:nrm(q.a),b:nrm(q.b)})),ops:ops.map(q=>({k:q.k,o:q.o,l:q.l/w,u:q.x/w,v:q.y/h})),tw:tw/M,rect:poly.length===4,w,h};
 }
 function planAutoApply(tr){
   const r=R(),bg=r.bg;if(!bg||!tr) return false;
@@ -2789,7 +2812,8 @@ function planAutoApply(tr){
   const W2=q=>{const lx=(q.u-0.5)*bw,ly=(q.v-0.5)*bh;return {x:rnd(bg.x+lx*co-ly*si),y:rnd(bg.y+lx*si+ly*co)};};
   r.pts=tr.poly.map(W2);r.closed=true;
   r.walls=tr.walls.map(q=>({id:uid(),a:W2(q.a),b:W2(q.b)}));
-  r.ops=[];r.zones=[];
+  r.ops=(tr.ops||[]).map(q=>{const p=W2(q);return {id:uid(),k:q.k,x:p.x,y:p.y,a:rnd((((q.o==='V'?90:0)+(bg.rot||0))%180+180)%180),w:rnd(q.l*bw),fl:0};});
+  r.zones=[];
   return true;
 }
 async function planAuto(quiet){
@@ -2807,7 +2831,7 @@ async function planAuto(quiet){
   ui.cal={pts:[{x:p.x,y:p.y},{x:q.x,y:q.y}],auto:true};
   setMode('room');ui.cal={pts:[{x:p.x,y:p.y},{x:q.x,y:q.y}],auto:true};
   save();fit();renderInfo();renderDock();
-  toast(tr.walls.length?`Fatto: ho disegnato il perimetro e ${tr.walls.length} muri interni.`:'Fatto: ho disegnato il perimetro.');
+  toast(tr.walls.length?`Fatto: ho disegnato il perimetro, ${tr.walls.length} muri interni e ${(tr.ops||[]).length} porte e finestre.`:'Fatto: ho disegnato il perimetro.');
   return true;
 }
 function calScale(L){
@@ -2815,7 +2839,7 @@ function calScale(L){
   const a=c.pts[0],b=c.pts[1],dcur=Math.hypot(b.x-a.x,b.y-a.y)||1,k=L/dcur,mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
   bg.w0*=k;bg.x=mx+(bg.x-mx)*k;bg.y=my+(bg.y-my)*k;
   const sc=q=>{q.x=rnd(mx+(q.x-mx)*k);q.y=rnd(my+(q.y-my)*k);};
-  r.pts.forEach(sc);r.walls.forEach(w=>{sc(w.a);sc(w.b);});
+  r.pts.forEach(sc);r.walls.forEach(w=>{sc(w.a);sc(w.b);});r.ops.forEach(o=>{sc(o);o.w=Math.max(0.5,rnd(o.w*k));});
   ui.cal=null;save();fit();renderInfo();renderDock();
 }
 function goTo(rid,fid){
