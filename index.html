@@ -235,6 +235,8 @@ input[type=range]{width:100%;min-height:32px}
   html,body{height:auto;overflow:visible;background:#fff}
   #app{display:none!important}
   #print{display:block}
+  .qrgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6mm}
+  .qrgrid img{width:100%;height:auto;break-inside:avoid}
   .ppage{page-break-after:always;font:12px/1.4 var(--f-body);color:#000}
   .ppage:last-child{page-break-after:auto}
   .ppage h2{font:700 20px var(--f-display);margin:0 0 8px}
@@ -1803,7 +1805,7 @@ ${containerHtml(f)}
 <div class="two"><label class="fld"><span>Larghezza</span><span class="inp"><input id="wcm" inputmode="numeric" value="${Math.round(f.w*100)}"><em>cm</em></span></label><label class="fld"><span>Profondità</span><span class="inp"><input id="dcm" inputmode="numeric" value="${Math.round(f.d*100)}"><em>cm</em></span></label></div>
 <label class="fld"><span>Angolo di rotazione</span><span class="inp"><input id="rotDeg" inputmode="numeric" value="${Math.round(f.rot)}"><em>°</em></span></label>
 <div class="tools" style="margin-bottom:8px"><button type="button" class="btn" id="rot">Ruota di 90°</button><button type="button" class="btn" id="rotWall">Allinea al muro</button></div>
-<div class="tools"><button type="button" class="btn" id="chIcon0" hidden></button><button type="button" class="btn" id="chIcon">Cambia icona</button><button type="button" class="btn" id="saveTpl">Salva come pulsante</button><button type="button" class="btn" id="dup">Duplica</button><button type="button" class="btn danger" id="delF">Elimina mobile</button></div>
+<div class="tools"><button type="button" class="btn" id="chIcon0" hidden></button><button type="button" class="btn" id="chIcon">Cambia icona</button><button type="button" class="btn" id="saveTpl">Salva come pulsante</button><button type="button" class="btn" id="qrLab">Etichetta QR</button><button type="button" class="btn" id="dup">Duplica</button><button type="button" class="btn danger" id="delF">Elimina mobile</button></div>
 </div></div>`;
 }
 function msHtml(f){
@@ -1965,6 +1967,7 @@ dock.addEventListener('click',e=>{
     if(b.id==='msDone'){ui.msel=null;renderItems(f);return;}
     if(b.id==='msDel'){twoTap(b,'Tocca ancora per eliminare',()=>{const n=ui.msel.size;f.items=f.items.filter(i=>!ui.msel.has(i.id));ui.msel=null;renderItems(f);save();render();toast(n+(n===1?' oggetto eliminato.':' oggetti eliminati.'));});return;}
   }
+  if(b.id==='qrLab'&&f){qrLabelView(r,f);return;}
   if(b.id==='dup'&&f){
     const base=f.name.replace(/ \d+$/,''),n=r.furn.filter(x=>x.name.replace(/ \d+$/,'')===base).length;
     const c={id:uid(),type:f.type,name:base+' '+(n+1),x:snap(f.x+0.3),y:snap(f.y+0.3),w:f.w,d:f.d,rot:f.rot,c:f.c,items:[],lvl:0,photos:[],note:''};
@@ -2264,7 +2267,7 @@ function backupNote(){
 function openMenu(){
   const m=$('#modal');
   const B=(a,l)=>`<button type="button" class="btn" data-m="${a}">${l}</button>`;
-  m.innerHTML=`<div class="dlg"><h2>Menu</h2>${storInfo()}${backupNote()}<p class="mh">Aggiungere</p><div class="mlist">${B('phr','Aggiungi oggetti scrivendo una frase')}</div><p class="mh">Vedere</p><div class="mlist">${B('lst','Elenco di tutti i contenitori')}${B('ovr','Panoramica della casa')}${B('todo','Da fare: buttare, regalare, vendere')}</div><p class="mh">Dati</p><div class="mlist">${B('exp','Salva una copia dei dati')}${B('imp','Carica una copia salvata')}${B('ver','Versioni precedenti')}${B('plan1','Rimetti la stanza «Mansarda 1» (solo il perimetro)')}${B('fill','Riempi le stanze con mobili d’esempio')}${B('prt','Stampa piantine ed elenco')}</div><p class="mh">Impostazioni</p><div class="mlist">${B('sync','Famiglia: '+(sy.fam?'collegata':'collega i telefoni'))}${B('delr','Elimina questa stanza')}${B('look','Aspetto e colori')}${B('guide','Guida')}</div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-m="x">Chiudi</button></div></div>`;
+  m.innerHTML=`<div class="dlg"><h2>Menu</h2>${storInfo()}${backupNote()}<p class="mh">Aggiungere</p><div class="mlist">${B('phr','Aggiungi oggetti scrivendo una frase')}</div><p class="mh">Vedere</p><div class="mlist">${B('lst','Elenco di tutti i contenitori')}${B('ovr','Panoramica della casa')}${B('todo','Da fare: buttare, regalare, vendere')}</div><p class="mh">Dati</p><div class="mlist">${B('exp','Salva una copia dei dati')}${B('imp','Carica una copia salvata')}${B('ver','Versioni precedenti')}${B('plan1','Rimetti la stanza «Mansarda 1» (solo il perimetro)')}${B('fill','Riempi le stanze con mobili d’esempio')}${B('qrs','Etichette QR da stampare')}${B('prt','Stampa piantine ed elenco')}</div><p class="mh">Impostazioni</p><div class="mlist">${B('sync','Famiglia: '+(sy.fam?'collegata':'collega i telefoni'))}${B('delr','Elimina questa stanza')}${B('look','Aspetto e colori')}${B('guide','Guida')}</div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-m="x">Chiudi</button></div></div>`;
   m.hidden=false;
   m.onclick=e=>{
     if(e.target===m){closeM();return;}
@@ -2293,6 +2296,7 @@ function openMenu(){
       save();closeM();renderRoomSel();renderInfo();setMode('furn');fit();
       toast('Ho rimesso «Mansarda 1» con il perimetro della casa. Mobili, porte e finestre vanno rimessi.');
     }
+    else if(a==='qrs') qrSheetView();
     else if(a==='prt'){closeM();setTimeout(printAll,60);}
   };
 }
@@ -3099,6 +3103,141 @@ function listHtml(r){
   const top=r.furn.filter(f=>!f.par);
   return (r.photos.length?`<div class="pph rph">${r.photos.map(x=>`<img src="${x}" alt="">`).join('')}</div>`:'')+(top.length?`<ul class="plist">${top.map(f=>row(f,0)).join('')}</ul>`:'<p>Nessun mobile in questa stanza.</p>');
 }
+/* generatore QR (byte, correzione M, versioni 1-10) */
+function qrMake(text){
+  const bytes=[...new TextEncoder().encode(text)];
+  const EC=[null,[10,[[1,16]]],[16,[[1,28]]],[26,[[1,44]]],[18,[[2,32]]],[24,[[2,43]]],[16,[[4,27]]],[18,[[4,31]]],[22,[[2,38],[2,39]]],[22,[[3,36],[2,37]]],[26,[[4,43],[1,44]]]];
+  const AL=[null,[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50]];
+  const cap=v=>EC[v][1].reduce((s,[n,d])=>s+n*d,0);
+  let ver=0;for(let v=1;v<=10;v++){if(bytes.length+(v<10?2:3)<=cap(v)){ver=v;break;}}
+  if(!ver) return null;
+  const size=17+4*ver,nd=cap(ver);
+  /* bit dei dati */
+  const bits=[];const put=(val,n)=>{for(let i=n-1;i>=0;i--) bits.push((val>>>i)&1);};
+  put(4,4);put(bytes.length,ver<10?8:16);bytes.forEach(b=>put(b,8));
+  put(0,Math.min(4,nd*8-bits.length));while(bits.length%8) bits.push(0);
+  const data=[];for(let i=0;i<bits.length;i+=8){let x=0;for(let j=0;j<8;j++) x=x*2+bits[i+j];data.push(x);}
+  for(let p=0;data.length<nd;p++) data.push(p%2?0x11:0xEC);
+  /* Reed-Solomon */
+  const ex=new Array(512),lg=new Array(256);let x=1;for(let i=0;i<255;i++){ex[i]=x;lg[x]=i;x<<=1;if(x&256) x^=0x11D;}for(let i=255;i<512;i++) ex[i]=ex[i-255];
+  const mul=(a,b)=>a&&b?ex[lg[a]+lg[b]]:0;
+  const ecn=EC[ver][0];let gen=[1];
+  for(let i=0;i<ecn;i++){const g=new Array(gen.length+1).fill(0);gen.forEach((c,j)=>{g[j]^=c;g[j+1]^=mul(c,ex[i]);});gen=g;}
+  const blocks=[];let pos=0;
+  EC[ver][1].forEach(([n,d])=>{for(let k=0;k<n;k++){blocks.push(data.slice(pos,pos+d));pos+=d;}});
+  const ecs=blocks.map(bl=>{const r=bl.concat(new Array(ecn).fill(0));for(let i=0;i<bl.length;i++){const f=r[i];if(f) for(let j=0;j<gen.length;j++) r[i+j]^=mul(gen[j],f);}return r.slice(bl.length);});
+  const out=[];const maxd=Math.max(...blocks.map(b=>b.length));
+  for(let i=0;i<maxd;i++) blocks.forEach(b=>{if(i<b.length) out.push(b[i]);});
+  for(let i=0;i<ecn;i++) ecs.forEach(e=>out.push(e[i]));
+  /* matrice */
+  const M=Array.from({length:size},()=>new Array(size).fill(false)),F=Array.from({length:size},()=>new Array(size).fill(false));
+  const set=(c,r,v)=>{if(c<0||r<0||c>=size||r>=size) return;M[r][c]=v;F[r][c]=true;};
+  const finder=(cx,cy)=>{for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){const d=Math.max(Math.abs(dx),Math.abs(dy));set(cx+dx,cy+dy,d!==2&&d!==4);}};
+  finder(3,3);finder(size-4,3);finder(3,size-4);
+  for(let i=0;i<size;i++){if(!F[6][i]) set(i,6,i%2===0);if(!F[i][6]) set(6,i,i%2===0);}
+  const al=AL[ver];
+  al.forEach(a=>al.forEach(b=>{if((a===6&&b===6)||(a===6&&b===al[al.length-1])||(a===al[al.length-1]&&b===6)) return;for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++) set(a+dx,b+dy,Math.max(Math.abs(dx),Math.abs(dy))!==1);}));
+  const fmt=(mask)=>{const d=(0<<3)|mask;let r=d;for(let i=0;i<10;i++) r=(r<<1)^((r>>>9)*0x537);const b=((d<<10)|r)^0x5412;const g=i=>((b>>>i)&1)===1;
+    for(let i=0;i<=5;i++) set(8,i,g(i));set(8,7,g(6));set(8,8,g(7));set(7,8,g(8));for(let i=9;i<15;i++) set(14-i,8,g(i));
+    for(let i=0;i<8;i++) set(size-1-i,8,g(i));for(let i=8;i<15;i++) set(8,size-15+i,g(i));set(8,size-8,true);};
+  fmt(0);
+  if(ver>=7){let r=ver;for(let i=0;i<12;i++) r=(r<<1)^((r>>>11)*0x1F25);const b=(ver<<12)|r;for(let i=0;i<18;i++){const c=((b>>>i)&1)===1,a=size-11+i%3,bb=Math.floor(i/3);set(a,bb,c);set(bb,a,c);}}
+  /* dati a zig-zag */
+  let bi=0;const total=out.length*8;
+  for(let right=size-1;right>=1;right-=2){if(right===6) right=5;
+    for(let vert=0;vert<size;vert++)for(let j=0;j<2;j++){const cx=right-j,up=((right+1)&2)===0,cy=up?size-1-vert:vert;
+      if(!F[cy][cx]&&bi<total){M[cy][cx]=((out[bi>>>3]>>>(7-(bi&7)))&1)===1;bi++;}}}
+  const dataMask=[];for(let r=0;r<size;r++){dataMask.push(F[r].slice());}
+  const conds=[(x,y)=>(x+y)%2===0,(x,y)=>y%2===0,(x,y)=>x%3===0,(x,y)=>(x+y)%3===0,(x,y)=>(Math.floor(x/3)+Math.floor(y/2))%2===0,(x,y)=>x*y%2+x*y%3===0,(x,y)=>(x*y%2+x*y%3)%2===0,(x,y)=>((x+y)%2+x*y%3)%2===0];
+  const penalty=m=>{let p=0;
+    const line=get=>{let run=1,prev=get(0);const arr=[prev?1:0];for(let i=1;i<size;i++){const v=get(i);arr.push(v?1:0);if(v===prev){run++;if(run===5) p+=3;else if(run>5) p++;}else{run=1;prev=v;}}
+      for(let i=0;i+11<=size;i++){const s=arr.slice(i,i+11).join('');if(s==='10111010000'||s==='00001011101') p+=40;}};
+    for(let r=0;r<size;r++) line(i=>m[r][i]);for(let c=0;c<size;c++) line(i=>m[i][c]);
+    for(let r=0;r<size-1;r++)for(let c=0;c<size-1;c++){const v=m[r][c];if(v===m[r][c+1]&&v===m[r+1][c]&&v===m[r+1][c+1]) p+=3;}
+    let dk=0;m.forEach(row=>row.forEach(v=>{if(v) dk++;}));p+=Math.floor(Math.abs(dk*20-size*size*10)/(size*size))*10;return p;};
+  let best=null,bp=1e9,bm=0;
+  for(let mk=0;mk<8;mk++){
+    const m=M.map(r=>r.slice());
+    for(let r=0;r<size;r++)for(let c=0;c<size;c++) if(!dataMask[r][c]&&conds[mk](c,r)) m[r][c]=!m[r][c];
+    /* informazioni di formato con la maschera scelta */
+    const keepM=M.map(r=>r.slice());for(let r=0;r<size;r++)for(let c=0;c<size;c++) M[r][c]=m[r][c];fmt(mk);const fin=M.map(r=>r.slice());for(let r=0;r<size;r++)for(let c=0;c<size;c++) M[r][c]=keepM[r][c];
+    const pn=penalty(fin);if(pn<bp){bp=pn;best=fin;bm=mk;}
+  }
+  return best;
+}
+
+/* etichette QR dei contenitori */
+const qrLink=f=>location.origin+location.pathname.replace(/index\.html$/,'')+'?b='+f.id;
+function qrLabelCanvas(r,f){
+  const m=qrMake(qrLink(f));if(!m) return null;
+  const n=m.length,Q=4,cell=Math.max(4,Math.floor(520/(n+2*Q))),qs=cell*(n+2*Q),W=600,Hh=qs+200;
+  const cv=document.createElement('canvas');cv.width=W;cv.height=Hh;const c=cv.getContext('2d');
+  c.fillStyle='#fff';c.fillRect(0,0,W,Hh);
+  c.fillStyle='#000';const ox=Math.round((W-qs)/2),oy=20;
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++) if(m[y][x]) c.fillRect(ox+(x+Q)*cell,oy+(y+Q)*cell,cell,cell);
+  c.textAlign='center';c.textBaseline='alphabetic';
+  let fs=60;const nm=f.name||'Senza nome';
+  do{c.font='700 '+fs+'px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';fs-=2;}while(c.measureText(nm).width>W-50&&fs>22);
+  c.fillStyle='#000';c.fillText(nm,W/2,oy+qs+62);
+  const up=pathOf(r,f).slice(0,-1);
+  const sub=(up.length?up.join(' → ')+' · ':'')+r.name;
+  let fs2=32;do{c.font='500 '+fs2+'px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';fs2-=2;}while(c.measureText(sub).width>W-50&&fs2>16);
+  c.fillStyle='#444';c.fillText(sub,W/2,oy+qs+112);
+  c.fillStyle='#777';c.font='500 24px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';c.fillText('Dove Sta · inquadra con la fotocamera',W/2,oy+qs+158);
+  c.strokeStyle='#000';c.lineWidth=4;c.strokeRect(2,2,W-4,Hh-4);
+  return cv;
+}
+function qrPrint(urls){
+  $('#print').innerHTML=`<section class="ppage"><div class="qrgrid">${urls.map(u=>`<img src="${u}" alt="">`).join('')}</div></section>`;
+  try{window.print();}catch(_){toast('La stampa non è disponibile qui. Apri l’app in Chrome, oppure salva l’immagine.');}
+}
+function qrSave(url,name){
+  try{const a=document.createElement('a');a.href=url;a.download='etichetta-'+String(name||'scatola').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.png';document.body.appendChild(a);a.click();a.remove();toast('Immagine salvata.');}
+  catch(_){toast('Non riesco a salvarla qui. Usa Stampa.');}
+}
+function qrLabelView(r,f){
+  const cv=qrLabelCanvas(r,f);if(!cv){toast('Non riesco a fare il QR di questo contenitore.');return;}
+  const url=cv.toDataURL('image/png'),m=$('#modal');
+  m.innerHTML=`<div class="dlg"><h2>Etichetta QR</h2><div style="text-align:center"><img src="${url}" alt="Etichetta QR di ${esc(f.name)}" style="width:min(100%,260px);border:1px solid var(--line);border-radius:8px"></div><p class="hint">Stampala, ritagliala e incollala sul contenitore. Poi inquadrala con la fotocamera del telefono: si apre l’app proprio su «${esc(f.name)}».</p><div class="tools"><button type="button" class="btn pri" data-q="print">Stampa</button><button type="button" class="btn" data-q="save">Salva immagine</button></div><div class="drow" style="margin-top:10px"><button type="button" class="btn" data-q="x">Chiudi</button></div></div>`;
+  m.hidden=false;
+  m.onclick=e=>{
+    if(e.target===m){closeM();return;}
+    const b=e.target.closest('button[data-q]');if(!b) return;
+    if(b.dataset.q==='x') closeM();
+    else if(b.dataset.q==='print'){qrPrint([url]);}
+    else if(b.dataset.q==='save') qrSave(url,f.name);
+  };
+}
+function qrSheetView(){
+  const rows=[];S.rooms.forEach(r=>r.furn.forEach(f=>rows.push({r,f})));
+  const m=$('#modal');
+  if(!rows.length){toast('Non ci sono ancora contenitori. Aggiungine uno dalla barra in basso.');return;}
+  const html=()=>`<div class="dlg wide"><h2>Etichette QR</h2><p class="hint">Scegli i contenitori: stampi un foglio di etichette da ritagliare e incollare. Con la fotocamera del telefono si apre l’app su quel contenitore.</p><div class="tools" style="margin-bottom:8px"><button type="button" class="btn" data-q="all">Tutti</button><button type="button" class="btn" data-q="none">Solo le scatole principali</button></div><div style="max-height:46vh;overflow:auto">${rows.map(o=>`<label style="display:flex;gap:10px;align-items:center;padding:7px 2px;border-bottom:1px solid var(--line)"><input type="checkbox" data-k="${o.f.id}"${sel.has(o.f.id)?' checked':''}><span>${esc((emo(o.f)||'📦')+' '+o.f.name)}<small style="display:block;color:var(--muted)">${esc(o.r.name)}</small></span></label>`).join('')}</div><div class="drow" style="margin-top:10px"><button type="button" class="btn pri" data-q="print">Stampa ${sel.size} etichett${sel.size===1?'a':'e'}</button><button type="button" class="btn" data-q="back">Indietro</button></div></div>`;
+  const sel=new Set(rows.filter(o=>!o.f.par).map(o=>o.f.id));
+  const draw=()=>{const sc=m.querySelector('div[style*="overflow"]');const top=sc?sc.scrollTop:0;m.innerHTML=html();const s2=m.querySelector('div[style*="overflow"]');if(s2) s2.scrollTop=top;};
+  m.innerHTML=html();m.hidden=false;
+  m.onchange=e=>{const i=e.target.closest('input[data-k]');if(!i) return;if(i.checked) sel.add(i.dataset.k);else sel.delete(i.dataset.k);const bp=m.querySelector('button[data-q=print]');if(bp) bp.textContent='Stampa '+sel.size+' etichett'+(sel.size===1?'a':'e');};
+  m.onclick=e=>{
+    if(e.target===m){closeM();return;}
+    const b=e.target.closest('button[data-q]');if(!b) return;
+    const a=b.dataset.q;
+    if(a==='back'){m.onchange=null;openMenu();}
+    else if(a==='all'){rows.forEach(o=>sel.add(o.f.id));draw();}
+    else if(a==='none'){sel.clear();rows.filter(o=>!o.f.par).forEach(o=>sel.add(o.f.id));draw();}
+    else if(a==='print'){
+      const urls=[];rows.forEach(o=>{if(sel.has(o.f.id)){const cv=qrLabelCanvas(o.r,o.f);if(cv) urls.push(cv.toDataURL('image/png'));}});
+      if(!urls.length){toast('Scegli almeno un contenitore.');return;}
+      m.onchange=null;closeM();setTimeout(()=>qrPrint(urls),60);
+    }
+  };
+}
+function findBox(id){for(const r of S.rooms){const f=r.furn.find(x=>x.id===id);if(f) return {r,f};}return null;}
+function openBoxLink(id,n){
+  const h=findBox(id);
+  if(h){closeM();goTo(h.r.id,h.f.id);return;}
+  if(n<3&&sy.fam){setTimeout(()=>openBoxLink(id,n+1),4000);return;}
+  toast('Non trovo questo contenitore su questo telefono. Se usi la famiglia, apri l’app, aspetta che si aggiorni e inquadra di nuovo il QR.');
+}
 function printAll(){
   let pages='';
   withRooms(760,520,(rm,svg)=>{pages+=`<section class="ppage"><h2>${esc(rm.name)}</h2>${svg}${listHtml(rm)}</section>`;});
@@ -3326,9 +3465,12 @@ function syInit(){
   syStatus();
   const q=(()=>{try{return new URLSearchParams(location.search).get('f');}catch(_){return null;}})();
   syInv=q;
-  if(q){try{history.replaceState(null,'',location.pathname);}catch(_){}
+  const qb=(()=>{try{return new URLSearchParams(location.search).get('b');}catch(_){return null;}})();
+  if(q||qb){try{history.replaceState(null,'',location.pathname);}catch(_){}}
+  if(q){
     if(!sy.fam){setTimeout(()=>syJoinView(q),900);}
   }
+  if(qb) setTimeout(()=>openBoxLink(qb,0),1300);
   document.addEventListener('pointerdown',()=>{syAct=Date.now();},{passive:true,capture:true});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&sy.fam) syncNow('visible');});
   window.addEventListener('online',()=>{if(sy.fam) syncNow('online');});
