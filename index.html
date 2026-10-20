@@ -575,6 +575,7 @@ if(!S.pref) S.pref={};
 hist=[];redoS=[];base=cloneS(S);lastJ=JSON.stringify(S,noCur);
 updUndo();
 const ui={mode:'furn',sel:null,q:'',resOpen:false,focus:null,wallDraw:null,selWall:null,selTxt:null,selOp:null,bgEd:false,rpEd:false,rtab:'muri',shMin:false,msel:null,lsort:'nome',edI:null,flt:null,guides:null,view:{cx:2.8,cy:2.1,ppm:70,rot:0}};
+let bkArmed=false,bkWait=false,syInv=null;
 const R=()=>{const r=S.rooms.find(x=>x.id===S.cur)||S.rooms[0];if(!r.texts) r.texts=[];if(!r.ops) r.ops=[];if(!r.photos) r.photos=[];return r;};
 const getF=id=>id?R().furn.find(f=>f.id===id):null;
 const getT=id=>id?R().texts.find(t=>t.id===id):null;
@@ -2783,8 +2784,9 @@ async function planTrace1(src,ro){
   /* porte e finestre: i varchi lungo i muri. Se nel varco corre una riga sottile è una finestra, se è vuoto è una porta */
   const ops=[],hb=Math.max(2,Math.round(tw*0.4));
   const hitAt=(arr,o,c,t)=>{for(let d=-hb;d<=hb;d++){const x=o==='H'?t:Math.round(c)+d,y=o==='H'?Math.round(c)+d:t;if(x>=0&&y>=0&&x<w&&y<h&&arr[y*w+x]) return true;}return false;};
-  const scanLine=(o,c,s0,e0)=>{
-    const lo=Math.max(0,Math.floor(s0)),hi=Math.min((o==='H'?w:h)-1,Math.ceil(e0));
+  const scanLine=(o,c,s0,e0,ext)=>{
+    ext=ext||0;
+    const lo=Math.max(0,Math.floor(s0-ext)),hi=Math.min((o==='H'?w:h)-1,Math.ceil(e0+ext));
     let gs=-1;const gaps=[];
     for(let t=lo;t<=hi;t++){
       if(!hitAt(mask,o,c,t)){if(gs<0) gs=t;}
@@ -2796,15 +2798,39 @@ async function planTrace1(src,ro){
       const win=cov/len>=0.75;
       if(len>(win?M*0.26:M*0.11)) return;
       const t=(a+b+1)/2;
-      ops.push({k:win?'finestra':'porta',o,l:len,x:o==='H'?t:c,y:o==='H'?c:t});
+      const op={k:win?'finestra':'porta',o,l:len,x:o==='H'?t:c,y:o==='H'?c:t,fl:0};
+      if(!win){
+        /* verso della porta: prova le 4 combinazioni di cerniera e lato e sceglie quella che combacia con foglio e arco disegnati */
+        const L=len,P=(t0,sd)=>o==='H'?[t0,c+sd]:[c+sd,t0];
+        const dkNear=(x,y)=>{x=Math.round(x);y=Math.round(y);for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const X=x+dx,Y=y+dy;if(X>=0&&Y>=0&&X<w&&Y<h&&dark[Y*w+X]&&!mask[Y*w+X]) return 1;}return 0;};
+        let best=-1,second=-1,bh=a,bs=1;
+        const cand=[];
+        [a,b+1].forEach(hg=>[1,-1].forEach(sd=>{
+          const u=hg===a?1:-1;let sc=0;
+          [0.9,1,1.1,1.2,1.3].forEach(f=>{
+            const R=L*f;let hit=0,tot=0;
+            for(let ph=8;ph<=82;ph+=5){const r=ph*Math.PI/180,q=P(hg+R*Math.cos(r)*u,R*Math.sin(r)*sd);hit+=dkNear(q[0],q[1]);tot++;}
+            for(let k=hb+4;k<=R;k+=3){const q=P(hg,sd*k);hit+=dkNear(q[0],q[1])*1.5;tot+=1.5;}
+            if(tot&&hit/tot>sc) sc=hit/tot;
+          });
+          cand.push({hg,sd,sc});
+        }));
+        cand.sort((x,y)=>y.sc-x.sc);
+        best=cand[0].sc;second=cand[1].sc;bh=cand[0].hg;bs=cand[0].sd;
+        if(best>=0.3&&best-second>=0.06){
+          const along=bh===a?-1:1,perp=o==='H'?bs:-bs;
+          op.fl=(along>0?2:0)|(perp>0?1:0);
+        }
+      }
+      ops.push(op);
     });
   };
   poly.forEach((a,i)=>{const b=poly[(i+1)%poly.length];if(Math.abs(a.x-b.x)<1e-6) scanLine('V',a.x,Math.min(a.y,b.y),Math.max(a.y,b.y));else scanLine('H',a.y,Math.min(a.x,b.x),Math.max(a.x,b.x));});
   const lines=[];
   merged.forEach(sg=>{const g=lines.find(q=>q.o===sg.o&&Math.abs(q.c-sg.c)<=tw*1.2);if(g){g.s=Math.min(g.s,sg.s);g.e=Math.max(g.e,sg.e);}else lines.push({o:sg.o,c:sg.c,s:sg.s,e:sg.e});});
-  lines.forEach(g=>scanLine(g.o,g.c,g.s,g.e));
+  lines.forEach(g=>scanLine(g.o,g.c,g.s,g.e,M*0.11));
   const nrm=p=>({u:p.x/w,v:p.y/h});
-  return {poly:poly.map(nrm),walls:walls.map(q=>({a:nrm(q.a),b:nrm(q.b)})),ops:ops.map(q=>({k:q.k,o:q.o,l:q.l/w,u:q.x/w,v:q.y/h})),tw:tw/M,rect:poly.length===4,w,h};
+  return {poly:poly.map(nrm),walls:walls.map(q=>({a:nrm(q.a),b:nrm(q.b)})),ops:ops.map(q=>({k:q.k,o:q.o,l:q.l/w,u:q.x/w,v:q.y/h,fl:q.fl||0})),tw:tw/M,rect:poly.length===4,w,h};
 }
 function planAutoApply(tr){
   const r=R(),bg=r.bg;if(!bg||!tr) return false;
@@ -2812,7 +2838,7 @@ function planAutoApply(tr){
   const W2=q=>{const lx=(q.u-0.5)*bw,ly=(q.v-0.5)*bh;return {x:rnd(bg.x+lx*co-ly*si),y:rnd(bg.y+lx*si+ly*co)};};
   r.pts=tr.poly.map(W2);r.closed=true;
   r.walls=tr.walls.map(q=>({id:uid(),a:W2(q.a),b:W2(q.b)}));
-  r.ops=(tr.ops||[]).map(q=>{const p=W2(q);return {id:uid(),k:q.k,x:p.x,y:p.y,a:rnd((((q.o==='V'?90:0)+(bg.rot||0))%180+180)%180),w:rnd(q.l*bw),fl:0};});
+  r.ops=(tr.ops||[]).map(q=>{const p=W2(q);return {id:uid(),k:q.k,x:p.x,y:p.y,a:rnd((((q.o==='V'?90:0)+(bg.rot||0))%180+180)%180),w:rnd(q.l*bw),fl:q.fl||0};});
   r.zones=[];
   return true;
 }
@@ -3299,6 +3325,7 @@ function syInit(){
   syReady=true;
   syStatus();
   const q=(()=>{try{return new URLSearchParams(location.search).get('f');}catch(_){return null;}})();
+  syInv=q;
   if(q){try{history.replaceState(null,'',location.pathname);}catch(_){}
     if(!sy.fam){setTimeout(()=>syJoinView(q),900);}
   }
@@ -3384,7 +3411,56 @@ document.querySelectorAll('[data-mode]').forEach(b=>{const on=b.dataset.mode===u
 renderDock();
 fit();
 syInit();
-try{if(!localStorage.getItem('dovesta.guide')) setTimeout(()=>{if($('#modal').hidden) guideView(0);},700);}catch(_){}
+/* tasto/gesto indietro: chiude finestre e menu, poi torna alla schermata principale, poi esce */
+function bkArm(){
+  if(bkArmed||bkWait) return;
+  try{if(navigator.userActivation&&!navigator.userActivation.hasBeenActive) return;history.pushState({dv:1},'');bkArmed=true;}catch(_){}
+}
+function backLevel(){
+  const m=$('#modal');
+  if(m&&!m.hidden){closeM();return true;}
+  if(ui.resOpen){ui.resOpen=false;renderResults();return true;}
+  const busy=ui.sel||ui.selWall||ui.selOp||ui.selTxt||ui.bgEd||ui.rpEd||ui.zone||ui.cal||ui.free||ui.wallDraw||ui.fin;
+  if(busy||ui.mode==='room'){
+    dropEmptyTxt(null);
+    ui.sel=null;ui.selWall=null;ui.selOp=null;ui.selTxt=null;ui.bgEd=false;ui.rpEd=false;ui.zone=null;ui.cal=null;ui.free=false;ui.freeLine=null;ui.wallDraw=null;ui.fin=false;
+    if(ui.mode==='room') setMode('furn');else{renderDock();render();}
+    return true;
+  }
+  return false;
+}
+window.addEventListener('popstate',()=>{
+  bkArmed=false;
+  if(backLevel()){bkArm();return;}
+  toast('Premi ancora indietro per uscire.');
+  bkWait=true;setTimeout(()=>{bkWait=false;bkArm();},2500);
+});
+document.addEventListener('pointerup',bkArm,{passive:true,capture:true});
+/* prima apertura: benvenuto con codice famiglia */
+function welcomeView(){
+  const m=$('#modal');
+  m.innerHTML=`<div class="dlg"><h2>Benvenuto in Dove Sta</h2><p class="infop">Da dove vuoi partire?</p><div class="mlist"><button type="button" class="btn pri" data-w="join">Ho un codice famiglia</button><button type="button" class="btn" data-w="new">Parto da zero con la mia casa</button><button type="button" class="btn" data-w="demo">Guarda prima un esempio</button></div><p class="hint">Il codice famiglia te lo dà chi usa già l’app (⋯ › Famiglia): collega i telefoni di casa, così la mappa è uguale su tutti.</p></div>`;
+  m.hidden=false;
+  m.onclick=e=>{
+    const b=e.target.closest('button[data-w]');if(!b) return;
+    try{localStorage.setItem('dovesta.welcome','1');}catch(_){}
+    const a=b.dataset.w;
+    if(a==='join'){syJoinView('');}
+    else if(a==='new'){
+      forceSnap();
+      const id=uid();
+      S={demo:false,cur:id,rooms:[{id,name:'Mansarda',closed:false,walls:[],pts:[],furn:[]}]};
+      ui.sel=null;save();renderRoomSel();renderInfo();setMode('furn');fit();closeM();
+      setTimeout(newRoomView,60);
+    }
+    else{closeM();setTimeout(()=>guideView(0),60);}
+  };
+}
+try{
+  const welcomed=localStorage.getItem('dovesta.welcome')||localStorage.getItem('dovesta.guide');
+  if(!sy.fam&&!syInv&&S.demo&&!welcomed) setTimeout(()=>{if($('#modal').hidden) welcomeView();},500);
+  else if(!syInv&&!localStorage.getItem('dovesta.guide')) setTimeout(()=>{if($('#modal').hidden) guideView(0);},700);
+}catch(_){}
 })();
 </script>
 <script>if("serviceWorker"in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}</script>
