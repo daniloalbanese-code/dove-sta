@@ -218,7 +218,7 @@ input[type=range]{width:100%;min-height:32px}
 .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin:4px 0 8px}
 .bar i{display:block;height:100%;background:var(--accent)}
 .bar i.hi{background:var(--danger)}
-.mh{margin:14px 0 6px;text-align:center;font:800 13px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.mh{margin:10px 0 2px;font:600 12px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .cap{display:block;margin:-6px 0 10px;font-size:13px;color:var(--muted)}
 .gdots{display:flex;gap:6px;justify-content:center;margin:10px 0}
 .gdots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
@@ -2283,7 +2283,7 @@ function datiView(){
 function openMenu(){
   const m=$('#modal');
   const B=(a,l)=>`<button type="button" class="btn" data-m="${a}">${l}</button>`;
-  m.innerHTML=`<div class="dlg"><h2 style="text-align:center">Menu</h2>${storInfo()}${backupNote()}<p class="mh">Aggiungere</p><div class="mlist">${B('phr','Aggiungi oggetti scrivendo una frase')}</div><p class="mh">Vedere</p><div class="mlist">${B('lst','Elenco di tutti i contenitori')}${B('ovr','Panoramica della casa')}${B('todo','Da fare: buttare, regalare, vendere')}</div><p class="mh">Condividere e stampare</p><div class="mlist">${B('sync','Famiglia: '+(sy.fam?'collegata':'collega i telefoni'))}${B('qrs','Etichette QR per i contenitori')}${B('prt','Stampa piantine ed elenco')}</div><p class="mh">Altro</p><div class="mlist">${B('dati','Copie di sicurezza dei dati')}${B('look','Aspetto e colori')}${B('guide','Guida')}${B('delr','Elimina questa stanza')}</div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-m="x">Chiudi</button></div></div>`;
+  m.innerHTML=`<div class="dlg"><h2>Menu</h2>${storInfo()}${backupNote()}<p class="mh">Aggiungere</p><div class="mlist">${B('phr','Aggiungi oggetti scrivendo una frase')}</div><p class="mh">Vedere</p><div class="mlist">${B('lst','Elenco di tutti i contenitori')}${B('ovr','Panoramica della casa')}${B('todo','Da fare: buttare, regalare, vendere')}</div><p class="mh">Condividere e stampare</p><div class="mlist">${B('sync','Famiglia: '+(sy.fam?'collegata':'collega i telefoni'))}${B('qrs','Etichette QR per i contenitori')}${B('prt','Stampa piantine ed elenco')}</div><p class="mh">Altro</p><div class="mlist">${B('dati','Copie di sicurezza dei dati')}${B('look','Aspetto e colori')}${B('guide','Guida')}${B('delr','Elimina questa stanza')}</div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-m="x">Chiudi</button></div></div>`;
   m.hidden=false;
   m.onclick=e=>{
     if(e.target===m){closeM();return;}
