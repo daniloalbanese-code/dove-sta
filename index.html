@@ -268,7 +268,10 @@ input[type=range]{width:100%;min-height:32px}
 .addrow input{flex:1;min-width:0;min-height:40px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:16px}
 textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:16px;resize:vertical}
 .more{margin-top:0}
-.more summary{min-height:40px;display:flex;align-items:center;font-weight:600;cursor:pointer}
+.more summary{min-height:46px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-weight:600;cursor:pointer;list-style:none;margin-bottom:12px}
+.more summary::-webkit-details-marker{display:none}
+.more summary::after{content:'';flex:none;width:9px;height:9px;border-right:2px solid var(--accent);border-bottom:2px solid var(--accent);transform:rotate(45deg) translate(-2px,-2px);transition:transform .15s}
+.more[open] summary::after{transform:rotate(-135deg) translate(-2px,-2px)}
 .swatches{display:flex;gap:10px;margin:6px 0 12px;flex-wrap:wrap}
 .sw{width:36px;height:36px;border-radius:50%;border:2px solid var(--line);cursor:pointer}
 .sw.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--accent)}
@@ -3627,6 +3630,7 @@ window.addEventListener('popstate',()=>{
   bkWait=true;setTimeout(()=>{bkWait=false;bkArm();},2500);
 });
 document.addEventListener('pointerup',bkArm,{passive:true,capture:true});
+document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.matches&&d.matches('details.more')&&d.open) setTimeout(()=>{try{d.querySelector('summary').scrollIntoView({block:'start',behavior:'smooth'});}catch(_){}},40);},true);
 /* prima apertura: benvenuto con codice famiglia */
 function welcomeView(){
   const m=$('#modal');
