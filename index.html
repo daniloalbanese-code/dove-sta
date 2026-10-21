@@ -2973,13 +2973,13 @@ function restoreSnap(i){
 }
 function lookView(){
   const m=$('#modal');let ic=prefs().icons||'color';
-  m.innerHTML=`<form class="dlg" id="lform" novalidate><h2>Aspetto e colori</h2><p class="mh" style="margin-top:0">Icone dei mobili</p><div class="seg full" role="group" aria-label="Stile icone">${[['color','Colorate'],['mono','Grigie'],['line','A linee']].map(([k,l])=>`<button type="button" class="${ic===k?'on':''}" data-ic="${k}">${l}</button>`).join('')}</div><p class="hint">«A linee» usa le icone semplici blu per i sei mobili classici; le altre diventano grigie.</p><p class="mh">Nomi dei colori</p><p class="hint">Dai un significato ai colori, ad esempio «Da buttare» o «Natale». I nomi compaiono in una legenda sulla mappa.</p>${COLORS.map((n,i)=>`<div class="fld" style="flex-direction:row;align-items:center;gap:10px"><i class="sw" style="background:var(--c${i+1});width:28px;height:28px;flex:none;cursor:default"></i><span class="inp" style="flex:1"><input data-cn="${i}" maxlength="20" placeholder="${n}" value="${esc((prefs().cn&&prefs().cn[i])||'')}" aria-label="Nome del colore ${n}"></span></div>`).join('')}<div class="drow"><button type="button" class="btn" data-x="1">Annulla</button><button type="submit" class="btn pri">Salva</button></div></form>`;
+  m.innerHTML=`<form class="dlg" id="lform" novalidate><h2>Aspetto e colori</h2><p class="mh" style="margin-top:0">Icone dei mobili</p><div class="seg full" role="group" aria-label="Stile icone">${[['color','Colorate'],['mono','Grigie'],['line','A linee']].map(([k,l])=>`<button type="button" class="${ic===k?'on':''}" data-ic="${k}">${l}</button>`).join('')}</div><p class="hint">«A linee» usa le icone semplici blu per i sei mobili classici; le altre diventano grigie.</p><p class="mh">Nomi dei colori</p><p class="hint">Dai un significato ai colori, ad esempio «Da buttare» o «Natale». I nomi compaiono in una legenda sulla mappa.</p>${COLORS.map((n,i)=>`<div class="fld" style="flex-direction:row;align-items:center;gap:10px"><i class="sw" style="background:var(--c${i+1});width:28px;height:28px;flex:none;cursor:default"></i><span class="inp" style="flex:1"><input data-cn="${i}" maxlength="20" placeholder="${n}" value="${esc((prefs().cn&&prefs().cn[i])||'')}" aria-label="Nome del colore ${n}"></span></div>`).join('')}<div class="drow"><button type="button" class="btn" data-x="1">Indietro</button><button type="submit" class="btn pri">Salva</button></div></form>`;
   m.hidden=false;
   m.onclick=e=>{
     if(e.target===m){closeM();return;}
     const b=e.target.closest('button');if(!b) return;
     if(b.dataset.ic){ic=b.dataset.ic;m.querySelectorAll('[data-ic]').forEach(x=>x.classList.toggle('on',x===b));}
-    else if(b.dataset.x) closeM();
+    else if(b.dataset.x) openMenu();
   };
   m.querySelector('#lform').onsubmit=e=>{
     e.preventDefault();
@@ -3505,15 +3505,16 @@ function syInfoLine(){return sy.fam?`Famiglia collegata · ${sy.err&&sy.err!=='n
 function syncView(){
   const m=$('#modal');
   if(!sy.fam){
-    m.innerHTML=`<div class="dlg"><h2>Famiglia</h2><p class="infop">Collega i telefoni di casa: quello che scrivi o sposti su uno compare anche sugli altri, foto comprese.</p><div class="mlist"><button type="button" class="btn pri" data-sy="new">Crea la famiglia (primo telefono)</button><button type="button" class="btn" data-sy="join">Ho già un codice (altro telefono)</button></div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-sy="x">Chiudi</button></div></div>`;
+    m.innerHTML=`<div class="dlg"><h2>Famiglia</h2><p class="infop">Collega i telefoni di casa: quello che scrivi o sposti su uno compare anche sugli altri, foto comprese.</p><div class="mlist"><button type="button" class="btn pri" data-sy="new">Crea la famiglia (primo telefono)</button><button type="button" class="btn" data-sy="join">Ho già un codice (altro telefono)</button></div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-sy="menu">Indietro</button></div></div>`;
   }else{
-    m.innerHTML=`<div class="dlg"><h2>Famiglia</h2><p class="infop">${syInfoLine()}</p><p class="mh">Codice di famiglia</p><p class="sycode" id="syCodeTx">${esc(sy.fam)}</p><p class="hint">Chi ha il codice vede e modifica tutto: dallo solo ai tuoi. Sugli altri telefoni: Menu › Famiglia › «Ho già un codice».</p><div class="mlist"><button type="button" class="btn pri" data-sy="share">Invia l’invito</button><button type="button" class="btn" data-sy="copy">Copia il codice</button><button type="button" class="btn" data-sy="now">Sincronizza adesso</button><button type="button" class="btn danger" data-sy="off">Scollega questo telefono</button></div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-sy="x">Chiudi</button></div></div>`;
+    m.innerHTML=`<div class="dlg"><h2>Famiglia</h2><p class="infop">${syInfoLine()}</p><p class="mh">Codice di famiglia</p><p class="sycode" id="syCodeTx">${esc(sy.fam)}</p><p class="hint">Chi ha il codice vede e modifica tutto: dallo solo ai tuoi. Sugli altri telefoni: Menu › Famiglia › «Ho già un codice».</p><div class="mlist"><button type="button" class="btn pri" data-sy="share">Invia l’invito</button><button type="button" class="btn" data-sy="copy">Copia il codice</button><button type="button" class="btn" data-sy="now">Sincronizza adesso</button><button type="button" class="btn danger" data-sy="off">Scollega questo telefono</button></div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-sy="menu">Indietro</button></div></div>`;
   }
   m.hidden=false;
   m.onclick=async e=>{
     const b=e.target.closest('button[data-sy]');if(!b){if(e.target===m) closeM();return;}
     const a=b.dataset.sy;
     if(a==='x') closeM();
+    else if(a==='menu') openMenu();
     else if(a==='join') syJoinView('');
     else if(a==='new'){
       forceSnap();
@@ -3541,7 +3542,7 @@ function syJoinView(code){
   m.hidden=false;
   m.onclick=async e=>{
     const b=e.target.closest('button[data-sj]');if(!b) return;
-    if(b.dataset.sj==='x'){closeM();return;}
+    if(b.dataset.sj==='x'){syncView();return;}
     const c=$('#syIn').value.toLowerCase().replace(/[^a-z0-9-]/g,'');
     const er=$('#syEr');
     if(c.replace(/-/g,'').length<16){er.textContent='Il codice è troppo corto: controlla di averlo copiato tutto.';er.hidden=false;return;}
