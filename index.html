@@ -230,6 +230,12 @@ input[type=range]{width:100%;min-height:32px}
 .egrid button{aspect-ratio:1;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:22px;line-height:1;cursor:pointer}
 .egrid button.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .dlg{max-height:92%;overflow:auto}
+.hg details{border-bottom:1px solid var(--line)}
+.hg summary{min-height:46px;display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer}
+.hg .hb{padding:0 2px 10px;font-size:14.5px;line-height:1.5}
+.hg .hb p{margin:0 0 8px}
+.hg .hb ul,.hg .hb ol{margin:0 0 8px;padding-left:20px}
+.hg .hb li{margin-bottom:5px}
 #print{display:none}
 @media print{
   html,body{height:auto;overflow:visible;background:#fff}
@@ -2299,7 +2305,7 @@ function openMenu(){
     else if(a==='ovr') overView();
     else if(a==='ver') verView();
     else if(a==='look') lookView();
-    else if(a==='guide') guideView(0);
+    else if(a==='guide') helpView();
     else if(a==='fill'){
       closeM();
       setTimeout(()=>openModal({title:'Riempire le stanze con esempi?',text:'In ogni stanza disegnata aggiungo da 6 a 9 mobili messi a caso, con qualche oggetto dentro. Quello che hai già non viene toccato. Prima l’app salva una copia: la ritrovi in ⋯ › Versioni precedenti. Gli esempi si tolgono uno per uno dalla scheda del mobile.',ok:'Sì, riempi',fields:[],onOk:()=>fillDemo()}),60);
@@ -2994,6 +3000,33 @@ const GUIDE=[
   ['🔎','Scrivi cosa c’è dentro','Tocca un mobile e aggiungi gli oggetti, con foto, quantità, scadenza ed etichette. Cerca un oggetto e la mappa ti mostra dov’è. Dal menu ⋯ trovi l’elenco da fare, la stampa e il salvataggio dei dati.']
 ];
 let guideKeep=true;
+const HELP=[
+['🏠','Cos’è Dove Sta','<p>È la mappa della tua casa. Disegni le stanze, ci metti mobili e scatole e scrivi cosa c’è dentro. Quando cerchi un oggetto, la mappa ti mostra subito dove si trova.</p><p>Funziona anche senza internet. I dati restano sul tuo telefono; se vuoi, li condividi con la famiglia.</p>'],
+['🧭','Muoversi sulla mappa','<ul><li><b>Un dito:</b> sposta la mappa.</li><li><b>Due dita:</b> avvicini o allontani; girandole ruoti la mappa di 90°.</li><li><b>Pulsanti a destra:</b> + e − per lo zoom, il quadratino per vedere tutta la stanza, la freccia circolare per ruotare di 90°. L’ultima rotazione resta anche nelle stampe.</li><li><b>Frecce in alto a sinistra:</b> annullano o rifanno l’ultima modifica.</li><li><b>Gesto indietro del telefono:</b> chiude la finestra aperta o torna alla schermata principale.</li></ul>'],
+['✏️','Disegnare una stanza','<p>Tocca <b>+</b> in alto, dai un nome alla stanza e scegli come cominciare:</p><ul><li><b>Carica piantina:</b> usi la foto o il disegno della stanza. L’app riconosce da sola muri, porte e finestre.</li><li><b>Disegna righe:</b> tocchi gli angoli uno dopo l’altro; i muri vengono dritti.</li><li><b>Mano libera:</b> traccia la forma col dito e l’app la ripulisce.</li><li><b>Stanza rettangolare:</b> scrivi solo larghezza e lunghezza.</li></ul><p>Se sbagli, «Cancella i muri» nella scheda Stanza ricomincia. Per eliminare una stanza intera: ⋯ › Elimina questa stanza.</p>'],
+['📐','Piantina da foto','<ol><li>Crea una stanza e scegli <b>Carica piantina</b>.</li><li>L’app disegna perimetro, muri interni, porte e finestre.</li><li>Scrivi quanto è lunga la linea arancione (cerca la misura sulla piantina): l’app calcola tutte le altre. Se non la sai, premi «Non lo so» e correggi dopo.</li><li>Controlla il disegno e trascina gli angoli se serve. Poi premi <b>Ok, salva</b>.</li></ol><p>In Mobili vedrai solo i muri, senza la foto. La foto resta in Stanza › Altro › «Foto della piantina». Se il riconoscimento non va bene, scegli «Ricalco a mano». Le piantine con muri ben marcati funzionano meglio.</p>'],
+['🧱','Muri, porte e finestre','<p>Nella scheda <b>Stanza</b> ci sono tre sezioni:</p><ul><li><b>Muri:</b> trascina gli angoli (si bloccano a 90°). Tocca la misura di un muro per scrivere i metri. Doppio tocco su un muro: aggiunge un punto. «Aggiungi tramezza» disegna un muro interno, anche tratteggiato. Qui trovi anche «Colora una stanza» e «Disegna da misure».</li><li><b>Porte e finestre:</b> aggiungile e trascinale lungo i muri. Toccane una per cambiare larghezza e verso di apertura.</li><li><b>Altro:</b> testi sulla mappa (per esempio «Bagno»), foto della piantina, foto della stanza, rinomina ed elimina.</li></ul>'],
+['🎨','Colorare le stanze','<p>In Stanza › Muri tocca <b>Colora una stanza</b>, scegli un colore e tocca dentro una stanza chiusa dai muri. Porte e varchi fino a circa un metro contano come chiusi. Per togliere il colore scegli ⌀ e tocca la stanza. Se una stanza è aperta verso un’altra, aggiungi una tramezza.</p>'],
+['📦','Mobili e contenitori','<ul><li>Tocca un mobile nella barra in basso: compare sulla mappa, poi trascinalo al suo posto.</li><li><b>Personalizzato</b> crea buste, scatole di scarpe o qualsiasi cosa con l’icona che vuoi.</li><li>Tocca un mobile per aprirne la scheda. Se tocchi di nuovo il mobile già scelto compaiono i puntini agli angoli: trascinali per cambiarne la misura.</li><li>Il numero sul mobile conta gli oggetti dentro; la barra sotto dice quanto è pieno.</li><li>Nella scheda, «Colore, misure ed altre azioni» permette di cambiare colore, misure, rotazione e icona, duplicare, creare l’etichetta QR o eliminare.</li><li>Un contenitore può stare dentro un altro (una scatola nell’armadio): usa «Metti un contenitore qui dentro».</li></ul>'],
+['🧺','Gli oggetti dentro','<ul><li>Scrivi il nome in «Aggiungi» e premi il pulsante; la fotocamera accanto serve per una foto.</li><li><b>Più cose insieme:</b> «Aggiungi più cose scrivendo una frase», per esempio «Nella cassettiera inserisci un paio di scarpe, due maglioni e tre felpe». Controlli l’anteprima e confermi.</li><li>Tocca un oggetto per scegliere «Tieni, Buttare, Regalare, Vendere», quantità, scadenza, foto, etichette, «Di chi è», «Preso da» (chi lo ha portato via) o per spostarlo in un altro contenitore.</li><li>«Seleziona più oggetti» sposta o elimina molti oggetti in una volta.</li></ul>'],
+['🔎','Cercare','<p>Scrivi nella barra in alto, per esempio «trapano»: la mappa evidenzia dove sta. Sotto la barra trovi i filtri rapidi: oggetti «Da buttare», di una persona o con una certa etichetta. Tocca un risultato per andare al mobile, anche in un’altra stanza.</p>'],
+['👨‍👩‍👧','Famiglia: più telefoni insieme','<ol><li>Sul primo telefono: ⋯ › Famiglia › <b>Crea la famiglia</b>.</li><li>Manda agli altri il link di invito (pulsante di condivisione) oppure il codice.</li><li>Sugli altri telefoni: apri il link, oppure ⋯ › Famiglia › «Ho già un codice».</li></ol><p>Da quel momento quello che scrivi o sposti compare anche sugli altri, foto comprese. Il pallino verde in alto significa che è tutto aggiornato. Chi ha il codice vede e modifica tutto: dallo solo ai tuoi. Per uscire: ⋯ › Famiglia › Scollega.</p>'],
+['🏷️','Etichette QR','<p>Per riconoscere una scatola vera: tocca il contenitore, apri «Colore, misure ed altre azioni» e premi <b>Etichetta QR</b>. Stampala e incollala. Poi inquadra il QR con la fotocamera del telefono: si apre l’app su quel contenitore.</p><p>Per stampare più etichette insieme: ⋯ › Etichette QR per i contenitori. Funziona sui telefoni che hanno già i dati (il tuo o quelli della famiglia).</p>'],
+['🗂️','Elenchi, stampa e copie','<ul><li><b>Elenco di tutti i contenitori:</b> ordinabile per nome, più pieni, oggetti o stanza.</li><li><b>Panoramica della casa:</b> tutte le stanze insieme.</li><li><b>Da fare:</b> gli oggetti da buttare, regalare o vendere; tocca «Fatto» quando l’hai fatto.</li><li><b>Stampa piantine ed elenco:</b> ⋯ › Stampa piantine ed elenco; dalla stampa del telefono puoi anche scegliere «Salva come PDF».</li><li><b>Copie di sicurezza:</b> salva ogni tanto un file con tutti i dati; puoi ricaricarlo anche su un altro telefono. «Versioni precedenti» ritrova lo stato dell’app prima di una modifica importante.</li><li><b>Aspetto e colori:</b> stile delle icone e nomi dei colori (per esempio rosso = «Da buttare»).</li></ul>'],
+['📲','Installare come app','<p>Apri il link in Chrome sul telefono, tocca i tre puntini in alto a destra e scegli «Installa app» o «Aggiungi a schermata Home». Da lì si apre a schermo intero come una vera app.</p>'],
+['🛟','Se qualcosa non va','<ul><li><b>Non vedo le novità:</b> chiudi l’app del tutto e riaprila, anche due volte.</li><li><b>Ho perso dei dati:</b> prova ⋯ › Copie di sicurezza dei dati › Versioni precedenti, oppure carica l’ultima copia.</li><li><b>La piantina è stata letta male:</b> trascina gli angoli, oppure premi «Ricalco a mano».</li><li><b>Il QR non si apre:</b> il telefono deve avere i dati: collegalo alla famiglia.</li><li><b>Spazio quasi pieno:</b> le foto pesano. Il menu mostra lo spazio usato quando supera il 60%: elimina le foto che non servono o salva una copia.</li></ul>']
+];
+function helpView(){
+  const m=$('#modal');
+  m.innerHTML=`<div class="dlg wide hg"><h2>Guida</h2><p class="hint" style="margin-top:0">Tocca un argomento per aprirlo.</p>${HELP.map(([e,t,b],i)=>`<details${i===0?' open':''}><summary><span aria-hidden="true">${e}</span> ${t}</summary><div class="hb">${b}</div></details>`).join('')}<div class="drow" style="margin-top:12px"><button type="button" class="btn" data-hg="tour">Rivedi il giro iniziale</button><button type="button" class="btn pri" data-hg="back">Indietro</button></div></div>`;
+  m.hidden=false;
+  m.onclick=e=>{
+    if(e.target===m){closeM();return;}
+    const b=e.target.closest('button[data-hg]');if(!b) return;
+    if(b.dataset.hg==='back') openMenu();
+    else if(b.dataset.hg==='tour') guideView(0);
+  };
+}
 function guideView(i){
   const m=$('#modal'),g=GUIDE[i],last=i===GUIDE.length-1;
   m.innerHTML=`<div class="dlg" style="text-align:center"><div class="gbig" aria-hidden="true">${g[0]}</div><h2>${g[1]}</h2><p class="hint" style="font-size:15px;color:var(--ink);text-align:left">${g[2]}</p><div class="gdots" aria-hidden="true">${GUIDE.map((_,k)=>`<i class="${k===i?'on':''}"></i>`).join('')}</div><label class="gchk" style="display:flex;align-items:center;gap:10px;justify-content:center;margin:2px 0 14px;font-size:15px;color:var(--ink)"><input type="checkbox" id="gNo" ${guideKeep?'checked':''} style="width:22px;height:22px;accent-color:var(--accent)"> Non chiedermelo più</label><div class="drow">${last?'':'<button type="button" class="btn" data-g="skip">Salta</button>'}<button type="button" class="btn pri" data-g="next">${last?'Ho capito':'Avanti'}</button></div></div>`;
