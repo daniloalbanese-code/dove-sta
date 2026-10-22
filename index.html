@@ -3258,7 +3258,8 @@ function qrMake(text){
 }
 
 /* etichette QR dei contenitori */
-const qrLink=f=>location.origin+location.pathname.replace(/index\.html$/,'')+'?b='+f.id;
+const WEB=location.hostname==='localhost'?'https://daniloalbanese-code.github.io/dove-sta/':location.origin+location.pathname.replace(/index\.html$/,'');
+const qrLink=f=>WEB+'?b='+f.id;
 function qrLabelCanvas(r,f){
   const m=qrMake(qrLink(f));if(!m) return null;
   const n=m.length,Q=4,cell=Math.max(4,Math.floor(520/(n+2*Q))),qs=cell*(n+2*Q),W=600,Hh=qs+200;
@@ -3575,7 +3576,7 @@ function syInit(){
   if(sy.fam) setTimeout(()=>syncNow('start'),800);
 }
 const syCode=()=>{const A='abcdefghjkmnpqrstuvwxyz23456789',b=new Uint8Array(20);crypto.getRandomValues(b);let s='';b.forEach((x,i)=>{s+=A[x%A.length];if(i%5===4&&i<19) s+='-';});return s;};
-const syLink=()=>location.origin+location.pathname+'?f='+sy.fam;
+const syLink=()=>WEB+'?f='+sy.fam;
 function syAgo(t){if(!t) return 'mai';const s=Math.round((Date.now()-t)/1000);if(s<20) return 'adesso';if(s<90) return 'un minuto fa';if(s<3600) return Math.round(s/60)+' minuti fa';return new Date(t).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});}
 function syInfoLine(){return sy.fam?`Famiglia collegata · ${sy.err&&sy.err!=='nofam'?esc(sy.err):'aggiornato '+syAgo(sy.last)}`:'Famiglia non collegata';}
 function syncView(){
