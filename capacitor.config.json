@@ -1,0 +1,6 @@
+{
+  "appId": "it.dovesta.app",
+  "appName": "Dove Sta",
+  "webDir": "www",
+  "android": { "backgroundColor": "#F6F8F8" }
+}
