@@ -396,10 +396,6 @@ details>summary{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   </header>
 
   <div id="toolbar">
-    <div class="band pad demo" id="demoBar" hidden>
-      <span>Stanza d'esempio con mobili e oggetti inventati.</span>
-      <button class="btn sm" id="demoClear" type="button">Inizia da zero</button>
-    </div>
     <div class="band pad">
       <div class="sbox">
         <svg class="si" aria-hidden="true"><use href="#i-search"/></svg>
@@ -1780,7 +1776,6 @@ function renderInfo(){
 }
 function renderRoomSel(){
   $('#roomSel').innerHTML=S.rooms.map(r=>`<option value="${r.id}"${r.id===S.cur?' selected':''}>${esc(r.name)}</option>`).join('');
-  $('#demoBar').hidden=!S.demo;
 }
 function paletteHtml(){
   return `<div class="dockin pad"><div class="palh"><span>Tocca un mobile per aggiungerlo</span><button type="button" class="ibtn" data-info="pal" aria-label="Spiegazione">i</button></div><div class="pal">${Object.entries(TYPES).map(([k,t])=>`<button type="button" class="pitem" data-add="${k}">${t.e&&!(prefs().icons==='line'&&LINEIC.includes(k))?`<span class="pemo" aria-hidden="true">${t.e}</span>`:`<svg width="30" height="30" aria-hidden="true"><use href="#i-${k}"/></svg>`}<span>${t.label}</span></button>`).join('')}${(S.tpl||[]).map(t=>`<button type="button" class="pitem" data-tpl="${t.id}"><span class="pemo" aria-hidden="true">${esc(t.e)}</span><span>${esc(t.name)}</span></button>`).join('')}<button type="button" class="pitem" data-addcustom="1"><span class="pemo" aria-hidden="true" style="color:var(--accent);font-weight:600">+</span><span>Personalizzato</span></button><button type="button" class="pitem" data-addtext="1"><svg width="30" height="30" aria-hidden="true"><use href="#i-text"/></svg><span>Testo</span></button></div></div>`;
@@ -2241,7 +2236,7 @@ $('#newRoom').addEventListener('click',()=>{
     setTimeout(newRoomView,60);
   }});
 });
-$('#demoClear').addEventListener('click',function(){
+function demoClear(){
   openModal({title:'Svuotare tutta la mappa?',
     text:(sy.fam?'ATTENZIONE: questo telefono è collegato alla famiglia, quindi la mappa si svuota anche sugli altri telefoni. ':'')+'Vengono tolte tutte le stanze, i mobili e gli oggetti che vedi ora, e riparti da una mappa vuota. Se hai già inserito cose tue, spariscono dalla mappa. Prima di svuotare l’app tiene una copia (senza foto): la ritrovi in ⋯ › Versioni precedenti. Per sicurezza puoi anche usare ⋯ › Salva copia.',
     ok:'Sì, svuota tutto',fields:[],
@@ -2252,7 +2247,7 @@ $('#demoClear').addEventListener('click',function(){
       ui.sel=null;save();renderRoomSel();renderInfo();setMode('furn');fit();
       setTimeout(newRoomView,60);
     }});
-});
+}
 $('#zIn').addEventListener('click',()=>{const r=svg.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,1.3);});
 $('#zOut').addEventListener('click',()=>{const r=svg.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,1/1.3);});
 $('#zFit').addEventListener('click',fit);
@@ -2336,7 +2331,7 @@ function datiView(){
 function openMenu(){
   const m=$('#modal');
   const B=(a,l)=>`<button type="button" class="btn" data-m="${a}">${l}</button>`;
-  m.innerHTML=`<div class="dlg"><h2>Menu</h2>${storInfo()}${backupNote()}<p class="mh">Aggiungere</p><div class="mlist">${B('phr','Aggiungi oggetti scrivendo una frase')}</div><p class="mh">Vedere</p><div class="mlist">${B('lst','Elenco di tutti i contenitori')}${B('ovr','Panoramica della casa')}${B('todo','Da fare: buttare, regalare, vendere')}</div><p class="mh">Condividere e stampare</p><div class="mlist">${B('sync','Famiglia: '+(sy.fam?'collegata':'collega i telefoni'))}${B('qrs','Etichette QR per i contenitori')}${B('prt','Stampa piantine ed elenco')}</div><p class="mh">Altro</p><div class="mlist">${B('dati','Copie di sicurezza dei dati')}${B('look','Aspetto e colori')}${B('guide','Guida')}${B('delr','Elimina questa stanza')}</div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-m="x">Chiudi</button></div></div>`;
+  m.innerHTML=`<div class="dlg"><h2>Menu</h2>${storInfo()}${backupNote()}<p class="mh">Aggiungere</p><div class="mlist">${B('phr','Aggiungi oggetti scrivendo una frase')}</div><p class="mh">Vedere</p><div class="mlist">${B('lst','Elenco di tutti i contenitori')}${B('ovr','Panoramica della casa')}${B('todo','Da fare: buttare, regalare, vendere')}</div><p class="mh">Condividere e stampare</p><div class="mlist">${B('sync','Famiglia: '+(sy.fam?'collegata':'collega i telefoni'))}${B('qrs','Etichette QR per i contenitori')}${B('prt','Stampa piantine ed elenco')}</div><p class="mh">Altro</p><div class="mlist">${B('dati','Copie di sicurezza dei dati')}${B('look','Aspetto e colori')}${B('guide','Guida')}${S.demo?B('demo','Cancella l’esempio e riparti da zero'):''}${B('delr','Elimina questa stanza')}</div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-m="x">Chiudi</button></div></div>`;
   m.hidden=false;
   m.onclick=e=>{
     if(e.target===m){closeM();return;}
@@ -2344,6 +2339,7 @@ function openMenu(){
     const a=b.dataset.m;
     if(a==='x') closeM();
     else if(a==='phr') phraseView();
+    else if(a==='demo'){closeM();setTimeout(demoClear,60);}
     else if(a==='delr'){closeM();setTimeout(askDeleteRoom,60);}
     else if(a==='sync') syncView();
     else if(a==='dati') datiView();
