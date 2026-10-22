@@ -11,6 +11,7 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Dove Sta</title>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">
@@ -355,6 +356,17 @@ textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius
   #roomSel{max-width:170px;flex:1}
   .roomsel{flex:1;justify-content:flex-end}
 }
+
+/* nowrap pass */
+.btn,label.btn,.seg button,.chip,.pitem b{white-space:nowrap}
+.seg.full button{overflow:hidden;text-overflow:ellipsis}
+.res b,.res span,.ocard b,.ocard small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+details>summary{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (min-aspect-ratio:6/5){
+  .seg.full button{font-size:12.5px;padding:0 4px;flex:1 1 auto}
+  .btn{padding:0 11px;font-size:13px}
+  details>summary{font-size:14px}
+}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
@@ -373,8 +385,7 @@ textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius
 <symbol id="i-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7V4.5h14V7M12 4.5v15M9 19.5h6"/></symbol>
 </defs></svg>
 
-</head><body>
-<div id="app">
+</head><body><div id="app">
   <header class="band pad">
     <h1><svg class="mark" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v11h-8v7H3z" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="miter"/><circle cx="8.5" cy="8.5" r="2.2" fill="var(--accent)"/></svg>Dove Sta</h1>
     <div class="roomsel">
@@ -392,7 +403,7 @@ textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius
     <div class="band pad">
       <div class="sbox">
         <svg class="si" aria-hidden="true"><use href="#i-search"/></svg>
-        <input id="q" type="text" placeholder="Cerca un oggetto, es. trapano" autocomplete="off" aria-label="Cerca un oggetto">
+        <input id="q" type="text" placeholder="Cerca un oggetto" autocomplete="off" aria-label="Cerca un oggetto">
         <button class="qc" id="qClear" type="button" aria-label="Cancella la ricerca" hidden>×</button>
       </div>
     </div>
@@ -1783,7 +1794,7 @@ function toolsHtml(){
     return `<div class="dockin pad"><p class="hint">${hint}</p><div class="tools"><button type="button" class="btn" data-act="undo"${n?'':' disabled'}>Annulla punto</button><button type="button" class="btn pri" data-act="close"${n>=3?'':' disabled'}>Chiudi stanza</button>${B('measures','Da misure')}${B('reset','Ricomincia')}</div></div>`;
   }
   const tab=sw?'muri':(ui.rtab||'muri');
-  const tabs=`<div class="seg full" role="tablist" aria-label="Strumenti della stanza">${[['muri','Muri'],['aperture','Porte e finestre'],['altro','Altro']].map(([k,l])=>`<button type="button" role="tab" aria-selected="${tab===k}" class="${tab===k?'on':''}" data-rtab="${k}">${l}</button>`).join('')}</div>`;
+  const tabs=`<div class="seg full" role="tablist" aria-label="Strumenti della stanza">${[['muri','Muri'],['aperture','Porte/finestre'],['altro','Altro']].map(([k,l])=>`<button type="button" role="tab" aria-selected="${tab===k}" class="${tab===k?'on':''}" data-rtab="${k}">${l}</button>`).join('')}</div>`;
   let hint,btn='';
   if(tab==='muri'){
     hint=sw?'Tramezza selezionata. Trascina le estremità o cambia la misura.':'Trascina gli angoli: si bloccano a 90° e 180°. Tocca la misura di un muro per scrivere i metri. Doppio tocco su una linea: aggiunge un punto.';
@@ -1840,7 +1851,7 @@ function sheetHtml(f){
 <h3>Quanto è pieno</h3><div class="lvl" role="group" aria-label="Quanto è pieno">${LV.map((n,i)=>`<button type="button" class="${(f.lvl||0)===i?'on':''}" data-lvl="${i}">${n}</button>`).join('')}</div>
 <div class="sech"><h3>Foto <span id="phCnt"></span></h3><button type="button" class="btn sm" id="phTog" aria-expanded="false">Aggiungi</button></div><div id="photos" class="photos" hidden></div>
 <h3>Cosa c'è dentro <span id="cnt"></span></h3><div id="items"></div>
-<div id="msWrap"></div><form id="itemForm" class="addrow"><label class="ithumb" id="pendBox"></label><input id="itemIn" placeholder="Aggiungi, es. Trapano" maxlength="60" autocomplete="off" aria-label="Nuovo oggetto"><button type="submit" class="btn pri">Aggiungi</button></form><button type="button" class="btn sm" data-phr="1" style="margin-top:8px">Aggiungi più cose scrivendo una frase</button>
+<div id="msWrap"></div><form id="itemForm" class="addrow"><label class="ithumb" id="pendBox"></label><input id="itemIn" placeholder="Es. trapano" maxlength="60" autocomplete="off" aria-label="Nuovo oggetto"><button type="submit" class="btn pri">Aggiungi</button></form><button type="button" class="btn sm" data-phr="1" style="margin-top:8px">Aggiungi più cose scrivendo una frase</button>
 ${containerHtml(f)}
 <h3>Note</h3><textarea id="fNote" rows="2" placeholder="Es. la chiave è nel cassetto in alto" aria-label="Note">${esc(f.note||'')}</textarea>
 <details class="more" style="margin-top:14px"><summary>Colore, misure ed altre azioni</summary>
@@ -3691,5 +3702,4 @@ try{
 }catch(_){}
 })();
 </script>
-<script>if("serviceWorker"in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}</script>
-</body></html>
+<script>if("serviceWorker"in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){});});}</script></body></html>
