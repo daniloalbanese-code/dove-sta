@@ -12,11 +12,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - name: Controllo chiave di firma
+      - name: Controllo password
         env:
-          KS: ${{ secrets.KEYSTORE_BASE64 }}
+          KP: ${{ secrets.KEY_PASS }}
         run: |
-          if [ -z "$KS" ]; then echo "Manca il segreto KEYSTORE_BASE64"; exit 1; fi
+          if [ -z "$KP" ]; then echo "Manca il segreto KEY_PASS"; exit 1; fi
       - name: Prepara i file del sito
         run: |
           mkdir www
@@ -34,13 +34,11 @@ jobs:
         run: ./gradlew bundleRelease --no-daemon
       - name: Firma
         env:
-          KS: ${{ secrets.KEYSTORE_BASE64 }}
-          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
-          KS_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KP: ${{ secrets.KEY_PASS }}
         run: |
-          echo "$KS" | base64 -d > ks.jks
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:KP -in assets/ks.enc -out ks.jks
           cp android/app/build/outputs/bundle/release/app-release.aab dove-sta.aab
-          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore ks.jks -storepass "$KS_PASS" dove-sta.aab "$KS_ALIAS"
+          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore ks.jks -storepass "$KP" dove-sta.aab dovesta
           jarsigner -verify dove-sta.aab | head -3
           rm ks.jks
       - uses: actions/upload-artifact@v4
