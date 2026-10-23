@@ -957,7 +957,8 @@ function render(){
     h+=`<text class="rl" x="${lx}" y="${(ly-(l.s?4:0)).toFixed(1)}">${esc(l.t)}</text>`+(l.s?`<text class="rs" x="${lx}" y="${(ly+9).toFixed(1)}">${esc(l.s)}</text>`:'');
   });
   const q=ui.q.toLowerCase(),act=!!(q||ui.flt);
-  let hdl='';const outL=[];
+  let hdl='';const outL=[],boxes=[];
+  const preB=r.furn.filter(f=>!f.par).map(f=>{const e=extS(f),pp=w2s(f.x,f.y);return{id:f.id,x:pp[0],y:pp[1],hw:e.hw*ppm,hh:e.hh*ppm};});
   r.furn.forEach(f=>{
     if(f.par) return;
     const er=(((f.rot+vr)%360)+360)%360;
@@ -966,7 +967,7 @@ function render(){
     const cls='furn'+(sel?' sel':'')+(hit?' hit':'')+(dim?' dim':'')+(ui.mode==='furn'?'':' lock');
     const ex=e.hw*2*ppm,ey=e.hh*2*ppm,m=Math.min(ex,ey);
     const bar=ex>=40&&ey>=28;
-    const inside=ex>=78&&ey>=(bar?54:46);
+    const inside=ex>=78&&ey>=(bar?54:46)&&!preB.some(b=>b.id!==f.id&&Math.abs(b.x-fp[0])<b.hw+34&&Math.abs(b.y-(fp[1]+ey*0.25))<b.hh+6);
     const is=clamp(m*0.55,10,44);
     const showIcon=m>=16;
     const iy=inside?(bar?-9:-6):(bar?-2:0);
@@ -981,7 +982,8 @@ function render(){
     if(bar) addO(fp[0],fp[1]+ey/2-6,(ex-14)/2,4);
     if(allItems(r,f).length>0&&m>=16) addO(fp[0]+ex/2-3,fp[1]-ey/2+3,10,10);
     if(inside) h+=`<text class="lbl" x="0" y="${iy+is/2+(bar?10:12)}">${esc(trunc(f.name,16))}</text>`;
-    else outL.push({x:fp[0],y:fp[1]+ey/2+14,t:trunc(f.name,18),dim});
+    boxes.push({id:f.id,x:fp[0],y:fp[1],hw:ex/2,hh:ey/2});
+    if(!inside) outL.push({id:f.id,x:fp[0],y:fp[1]+ey/2+14,ey,t:trunc(f.name,18),dim,pri:(sel?4:0)+(hit?3:0)+(allItems(r,f).length>0?1:0)});
     const lv=f.lvl||0;
     if(bar){
       const bw=ex-14,by=ey/2-8;
@@ -998,14 +1000,20 @@ function render(){
   });
   {
     /* I nomi fuori dai mobili restano dentro lo schermo e non si sovrappongono tra loro. */
-    const placed=[],hg=14;
-    outL.sort((a,b)=>a.y-b.y||a.x-b.x).forEach(l=>{
-      const w=l.t.length*6.4+6;
+    const placed=[],hg=13;
+    outL.sort((a,b)=>b.pri-a.pri||a.y-b.y||a.x-b.x).forEach(l=>{
+      const w=l.t.length*6.2+6;
       const mr=l.y<200?58:4;
       const x=clamp(l.x,w/2+4,Math.max(w/2+4,W-w/2-mr));
-      let y=l.y;
-      for(let k=0;k<5;k++){if(!placed.some(q=>Math.abs(q.x-x)<(q.w+w)/2&&Math.abs(q.y-y)<hg)) break;y+=hg;}
-      y=clamp(y,10,H-8);
+      const free=y=>y>=10&&y<=H-8
+        &&!placed.some(q=>Math.abs(q.x-x)<(q.w+w)/2&&Math.abs(q.y-y)<hg)
+        &&!boxes.some(b=>b.id!==l.id&&Math.abs(b.x-x)<b.hw+w/2&&Math.abs(b.y-(y-4))<b.hh+6);
+      let y=null;
+      for(const dy of [0,hg,-(l.ey+hg+2),hg*2,-(l.ey+hg*2+2)]){if(free(l.y+dy)){y=l.y+dy;break;}}
+      if(y===null){
+        if(l.pri<3) return;               /* niente spazio: il nome si vede avvicinando la mappa o toccando il mobile */
+        y=clamp(l.y,10,H-8);
+      }
       placed.push({x,y,w});addO(x,y-4,w/2,8);
       h+=`<text class="lbl out" x="${x.toFixed(1)}" y="${y.toFixed(1)}"${l.dim?' style="opacity:.3"':''}>${esc(l.t)}</text>`;
     });
