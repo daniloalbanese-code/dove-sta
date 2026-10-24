@@ -23,6 +23,36 @@ jobs:
           cp index.html manifest.webmanifest sw.js icon-192.png icon-512.png www/
       - run: npm install
       - run: npx cap add android
+      - name: Schermo con fotocamera e barre
+        run: |
+          cat > android/app/src/main/java/it/dovesta/app/MainActivity.java <<'EOF'
+          package it.dovesta.app;
+
+          import android.os.Bundle;
+          import android.view.View;
+          import androidx.core.graphics.Insets;
+          import androidx.core.view.ViewCompat;
+          import androidx.core.view.WindowCompat;
+          import androidx.core.view.WindowInsetsCompat;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+            @Override
+            public void onCreate(Bundle savedInstanceState) {
+              super.onCreate(savedInstanceState);
+              View v = findViewById(android.R.id.content);
+              v.setBackgroundColor(0xFFF6F8F8);
+              WindowCompat.getInsetsController(getWindow(), v).setAppearanceLightStatusBars(true);
+              WindowCompat.getInsetsController(getWindow(), v).setAppearanceLightNavigationBars(true);
+              ViewCompat.setOnApplyWindowInsetsListener(v, (view, insets) -> {
+                Insets b = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+                view.setPadding(b.left, b.top, b.right, b.bottom);
+                return WindowInsetsCompat.CONSUMED;
+              });
+            }
+          }
+          EOF
+          ls android/app/src/main/java/it/dovesta/app/
       - name: Icone
         run: npx capacitor-assets generate --android
       - name: Numero versione
