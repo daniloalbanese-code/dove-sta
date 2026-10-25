@@ -1,5 +1,5 @@
 /* Prima la rete, poi la copia salvata: l'app si apre anche senza connessione e si aggiorna da sola. */
-const C='dovesta-v9';
+const C='dovesta-v10';
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.addAll(['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png'])).catch(()=>{}));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()));});
 self.addEventListener('fetch',e=>{
