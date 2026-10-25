@@ -3822,13 +3822,13 @@ function v3Open(opts){
   if(!gl){el.remove();toast('Questo telefono non supporta la vista 3D.');return;}
   const sc=v3Scene(r);
   const vs='attribute vec3 aP;attribute vec3 aN;uniform mat4 uVP;uniform mat4 uM;uniform vec2 uR;varying vec3 vN;varying vec3 vW;void main(){vec4 w=uM*vec4(aP,1.0);vW=w.xyz;vN=vec3(aN.x*uR.x-aN.z*uR.y,aN.y,aN.x*uR.y+aN.z*uR.x);gl_Position=uVP*w;}';
-  const fs='precision mediump float;varying vec3 vN;varying vec3 vW;uniform vec3 uC;uniform vec3 uE;uniform vec3 uSky;uniform float uF;void main(){vec3 n=normalize(vN);float d=max(dot(n,normalize(vec3(0.35,0.85,0.4))),0.0);float d2=max(dot(n,normalize(vec3(-0.6,0.3,-0.5))),0.0)*0.25;vec3 c=uC*(0.62+0.45*d+d2);float k=clamp((length(vW-uE)-uF)/16.0,0.0,0.7);gl_FragColor=vec4(mix(c,uSky,k),1.0);}';
+  const fs='#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\nvarying vec3 vN;varying vec3 vW;uniform vec3 uC;uniform vec3 uE;uniform vec3 uSky;uniform float uF;uniform float uT;float hh(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}void main(){vec3 n=normalize(vN);float d=max(dot(n,normalize(vec3(0.35,0.85,0.4))),0.0);float d2=max(dot(n,normalize(vec3(-0.6,0.3,-0.5))),0.0)*0.25;float sh=0.62+0.45*d+d2;float side=1.0-step(0.5,abs(n.y));sh*=mix(1.0,0.78+0.34*abs(n.x),side);vec3 c=uC;if(uT>0.5&&uT<1.5&&side>0.5){vec2 t=vec2(-n.z,n.x);float u=dot(vW.xz,t),v=vW.y;float bh=0.075,bw=0.23;float row=floor(v/bh);float cu=(u+mod(row,2.0)*0.5*bw)/bw;float cx=floor(cu);vec2 f=vec2(fract(cu),fract(v/bh));float mo=min(step(f.x,0.05)+step(f.y,0.14),1.0);float va=hh(vec2(cx,row));vec3 br=mix(vec3(0.84,0.60,0.49),vec3(0.70,0.45,0.36),va);c=mix(br,vec3(0.90,0.87,0.81),mo);if(v<0.13) c=vec3(0.96,0.94,0.90);if(v>2.3) c=vec3(0.96,0.94,0.90);}else if(uT>1.5&&uT<2.5){vec2 g=fract(vW.xz/0.5);float ln=min(step(g.x,0.03)+step(g.y,0.03),1.0);float ch=mod(floor(vW.x/0.5)+floor(vW.z/0.5),2.0);c=uC*(0.95+0.07*ch);c=mix(c,uC*0.72,ln);}c*=sh;float k=clamp((length(vW-uE)-uF)/16.0,0.0,0.7);gl_FragColor=vec4(mix(c,uSky,k),1.0);}';
   const sh=(t,s)=>{const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return o;};
   const pg=gl.createProgram();gl.attachShader(pg,sh(gl.VERTEX_SHADER,vs));gl.attachShader(pg,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(pg);
   if(!gl.getProgramParameter(pg,gl.LINK_STATUS)){el.remove();toast('Questo telefono non supporta la vista 3D.');return;}
   gl.useProgram(pg);
   const loc=n=>gl.getUniformLocation(pg,n),aP=gl.getAttribLocation(pg,'aP'),aN=gl.getAttribLocation(pg,'aN');
-  const U={vp:loc('uVP'),m:loc('uM'),r:loc('uR'),c:loc('uC'),e:loc('uE'),sky:loc('uSky'),f:loc('uF')};
+  const U={vp:loc('uVP'),m:loc('uM'),r:loc('uR'),c:loc('uC'),e:loc('uE'),sky:loc('uSky'),f:loc('uF'),t:loc('uT')};
   /* cubo unitario */
   const F=[[0,0,1,[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]],[0,0,-1,[1,-1,-1],[-1,-1,-1],[-1,1,-1],[1,1,-1]],[1,0,0,[1,-1,1],[1,-1,-1],[1,1,-1],[1,1,1]],[-1,0,0,[-1,-1,-1],[-1,-1,1],[-1,1,1],[-1,1,-1]],[0,1,0,[-1,1,1],[1,1,1],[1,1,-1],[-1,1,-1]],[0,-1,0,[-1,-1,-1],[1,-1,-1],[1,-1,1],[-1,-1,1]]];
   const cd=[];const ci=[];F.forEach((f,i)=>{for(let k=3;k<7;k++){const v=f[k];cd.push(v[0]/2,v[1]/2,v[2]/2,f[0],f[1],f[2]);}ci.push(i*4,i*4+1,i*4+2,i*4,i*4+2,i*4+3);});
@@ -3870,7 +3870,7 @@ function v3Open(opts){
   const drawBox=(b,y1o)=>{
     const y1=y1o==null?b.y1:y1o,h=y1-b.y0;if(h<0.01) return;
     gl.uniformMatrix4fv(U.m,false,[b.c*b.hl*2,0,b.s*b.hl*2,0, 0,h,0,0, -b.s*b.ht*2,0,b.c*b.ht*2,0, b.cx,b.y0+h/2,b.cz,1]);
-    gl.uniform2f(U.r,b.c,b.s);gl.uniform3fv(U.c,(ui.sel&&b.fid===ui.sel&&!b.deco)?[b.col[0]*0.5+0.06,b.col[1]*0.5+0.18,b.col[2]*0.5+0.4]:b.col);gl.drawElements(gl.TRIANGLES,36,gl.UNSIGNED_SHORT,0);
+    gl.uniform1f(U.t,b.wall?1:0);gl.uniform2f(U.r,b.c,b.s);gl.uniform3fv(U.c,(ui.sel&&b.fid===ui.sel&&!b.deco)?[b.col[0]*0.5+0.06,b.col[1]*0.5+0.18,b.col[2]*0.5+0.4]:b.col);gl.drawElements(gl.TRIANGLES,36,gl.UNSIGNED_SHORT,0);
   };
   const IDM=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
   const frame=t=>{
@@ -3905,7 +3905,7 @@ function v3Open(opts){
     gl.disable(gl.CULL_FACE);
     gl.uniformMatrix4fv(U.m,false,IDM);gl.uniform2f(U.r,1,0);
     gl.bindBuffer(gl.ARRAY_BUFFER,gb);gl.vertexAttribPointer(aP,3,gl.FLOAT,false,24,0);gl.vertexAttribPointer(aN,3,gl.FLOAT,false,24,12);
-    gl.uniform3f(U.c,0.78,0.84,0.85);gl.drawArrays(gl.TRIANGLES,0,6);
+    gl.uniform1f(U.t,0);gl.uniform3f(U.c,0.78,0.84,0.85);gl.drawArrays(gl.TRIANGLES,0,6);gl.uniform1f(U.t,2);
     fl.forEach(f=>{gl.bindBuffer(gl.ARRAY_BUFFER,f.b);gl.vertexAttribPointer(aP,3,gl.FLOAT,false,24,0);gl.vertexAttribPointer(aN,3,gl.FLOAT,false,24,12);gl.uniform3fv(U.c,f.col);gl.drawArrays(gl.TRIANGLES,0,f.n);});
     if(S3.mode==='walk'){gl.bindBuffer(gl.ARRAY_BUFFER,ceil.b);gl.vertexAttribPointer(aP,3,gl.FLOAT,false,24,0);gl.vertexAttribPointer(aN,3,gl.FLOAT,false,24,12);gl.uniform3fv(U.c,ceil.col);gl.drawArrays(gl.TRIANGLES,0,ceil.n);}
     gl.bindBuffer(gl.ARRAY_BUFFER,cb);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,cib);
