@@ -1,4 +1,4 @@
-# Dove Sta
+# Dove Stapp
 
 Inventario visivo della casa: disegni le stanze, metti i mobili e i contenitori, elenchi cosa c'è dentro.
 
