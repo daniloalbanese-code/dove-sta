@@ -3975,7 +3975,7 @@ function v3Open(opts){
     const p=ptr.get(e.pointerId);if(!p) return;
     const dx=e.clientX-p[0],dy=e.clientY-p[1];p[0]=e.clientX;p[1]=e.clientY;
     if(ptr.size===2){const a=[...ptr.values()],nd=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);if(pd>0){if(S3.mode==='orbit') cam.od=clamp(cam.od*pd/nd,2,40);else cam.zm=clamp((cam.zm||1)*nd/pd,1,3.5);}pd=nd;return;}
-    if(S3.mode==='walk'){cam.yaw-=dx*0.005;cam.pitch=clamp(cam.pitch-dy*0.004,-1.0,0.9);}
+    if(S3.mode==='walk'){cam.yaw+=dx*0.005;cam.pitch=clamp(cam.pitch-dy*0.004,-1.0,0.9);}
     else{cam.oy-=dx*0.006;cam.op=clamp(cam.op+dy*0.005,-1.45,-0.25);}
   });
   const pu=e=>{ptr.delete(e.pointerId);pd=0;};cv.addEventListener('pointerup',pu);cv.addEventListener('pointercancel',pu);
