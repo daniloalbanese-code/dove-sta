@@ -3942,6 +3942,12 @@ function v3Open(opts){
       if(w<=0.15) return;
       const d=Math.hypot(l.x-eye[0],l.z-eye[2]);
       if(S3.mode==='walk'&&d>7) return;
+      if(S3.mode==='walk'&&sc.boxes.some(q=>{if(!q.wall) return false;
+        const dx=l.x-eye[0],dy=l.y-eye[1],dz=l.z-eye[2],px=eye[0]-q.cx,pz=eye[2]-q.cz;
+        const o=[px*q.c+pz*q.s,eye[1],-px*q.s+pz*q.c],dd=[dx*q.c+dz*q.s,dy,-dx*q.s+dz*q.c],lo=[-q.hl,q.y0,-q.ht],hi=[q.hl,q.y1,q.ht];
+        let t0=0,t1=0.96;
+        for(let k=0;k<3;k++){ if(Math.abs(dd[k])<1e-9){ if(o[k]<lo[k]||o[k]>hi[k]) return false; } else { let ta=(lo[k]-o[k])/dd[k],tb=(hi[k]-o[k])/dd[k]; if(ta>tb){const z=ta;ta=tb;tb=z;} t0=Math.max(t0,ta);t1=Math.min(t1,tb); if(t0>t1) return false; } }
+        return true;})) return;
       L.push({l,sx:(x/w*0.5+0.5)*W,sy:(0.5-y/w*0.5)*Hh,d});
     });
     L.sort((a,b)=>a.d-b.d);
