@@ -218,6 +218,22 @@ input[type=range]{width:100%;min-height:32px}
 .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin:4px 0 8px}
 .bar i{display:block;height:100%;background:var(--accent)}
 .bar i.hi{background:var(--danger)}
+body.th-mare{--bg:#F6F3EC;--ink:#1F2D3A;--menu:#1F4E79}
+body.th-mare[data-sec=furn]{--accent:#0E7C86;--tint:#DFF0F1}
+body.th-mare[data-sec=room]{--accent:#D2692A;--tint:#FBE9DA}
+body.th-bosco{--bg:#F2F5EF;--ink:#1F2D24;--menu:#2E6B6B}
+body.th-bosco[data-sec=furn]{--accent:#2E7D4F;--tint:#DDEEE3}
+body.th-bosco[data-sec=room]{--accent:#A5651F;--tint:#F4E8D6}
+body.th-frutta{--bg:#F7F7FB;--ink:#1F2340;--menu:#F08A00}
+body.th-frutta[data-sec=furn]{--accent:#3D5AFE;--tint:#E4E8FF}
+body.th-frutta[data-sec=room]{--accent:#E0447C;--tint:#FFE3EC}
+body.th-viola{--bg:#F8F6FB;--ink:#271F3A;--menu:#6A46C9}
+body.th-viola[data-sec=furn]{--accent:#6A46C9;--tint:#EAE3FA}
+body.th-viola[data-sec=room]{--accent:#E4572E;--tint:#FDE5DD}
+body[class*=th-] header.band,body[class*=th-] #toolbar,body[class*=th-] .demo{background:var(--tint)}
+body[class*=th-] .mh,body[class*=th-] .dlg h2{color:var(--menu)}
+body[class*=th-] .seg{background:#fff}
+.thl{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}.thl button{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-weight:600;cursor:pointer;text-align:left}.thl button.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}.thl i{display:inline-block;width:22px;height:22px;border-radius:50%;border:1px solid rgba(0,0,0,.12)}.thl span{display:flex;gap:4px;margin-left:auto}
 .mh{margin:10px 0 2px;font:600 12px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .cap{display:block;margin:-6px 0 10px;font-size:13px;color:var(--muted)}
 .gdots{display:flex;gap:6px;justify-content:center;margin:10px 0}
@@ -501,7 +517,8 @@ const prefs=()=>S.pref||(S.pref={});
 const lineIcon=f=>prefs().icons==='line'&&LINEIC.includes(f.type)&&!f.e;
 const emoV=f=>lineIcon(f)?'':emo(f);
 const cname=i=>(prefs().cn&&prefs().cn[i])||COLORS[i];
-function applyPref(){document.body.classList.toggle('ico-mono',prefs().icons==='mono');document.body.classList.toggle('ico-line',prefs().icons==='line');}
+const THEMES=[["mare", "Mare e sabbia", "#0E7C86", "#D2692A", "#F6F3EC"], ["bosco", "Bosco", "#2E7D4F", "#A5651F", "#F2F5EF"], ["frutta", "Frutta", "#3D5AFE", "#E0447C", "#F7F7FB"], ["viola", "Viola e corallo", "#6A46C9", "#E4572E", "#F8F6FB"]];
+function applyPref(){const th=prefs().theme;THEMES.forEach(t=>document.body.classList.toggle('th-'+t[0],th===t[0]));document.body.dataset.sec=(typeof ui!=='undefined'&&ui.mode)||'furn';document.body.classList.toggle('ico-mono',prefs().icons==='mono');document.body.classList.toggle('ico-line',prefs().icons==='line');}
 const EMOJI='👟 👠 🥾 🛍️ 🧺 👜 🎒 🧳 📦 🗃️ 🗄️ 📚 📖 🧸 🎮 🎲 🎄 🎁 🕯️ 🔧 🔨 🧰 🔩 ⚙️ 🔌 💡 🔋 🧹 🧽 🧴 🧻 🛁 👕 👖 🧥 🧣 🧤 🧢 👗 🛏️ 🛋️ 🌿 🚪 🖼️ 🔑 ⏰ 📺 💻 📷 🎸 🎻 🎹 🥁 ⚽ 🎾 🏀 🚲 🏋️ ⛷️ 🎣 🏕️ 🍳 🍽️ 🥫 🍷 🧊 🧯 🌵 🌱 🧵 🧶 ✂️ 📎 🗝️ 💊 🩹 🧪 📁 🗂️ ✉️ 🏺 🧱 🏠 🛒 🧼 👞 🥿 👡 🎽 🧦'.split(' ');
 const COLORS=['Legno','Azzurro','Salvia','Ocra','Mattone','Grigio'];
 const LV=['Vuoto','Poco','Metà','Molto','Pieno'];
@@ -1798,7 +1815,7 @@ function processFree(raw){
 }
 function setMode(m){
   dropEmptyTxt(null);ui.selTxt=null;
-  ui.mode=m;ui.zone=null;ui.sel=null;ui.wallDraw=null;ui.selWall=null;ui.selOp=null;ui.bgEd=false;ui.rpEd=false;ui.rpEd=false;ui.free=false;ui.cal=null;ui.fin=false;ui.freeLine=null;
+  ui.mode=m;document.body.dataset.sec=m;ui.zone=null;ui.sel=null;ui.wallDraw=null;ui.selWall=null;ui.selOp=null;ui.bgEd=false;ui.rpEd=false;ui.rpEd=false;ui.free=false;ui.cal=null;ui.fin=false;ui.freeLine=null;
   document.querySelectorAll('[data-mode]').forEach(b=>{const on=b.dataset.mode===m;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');});
   renderDock();render();v3Sync();
 }
@@ -3058,11 +3075,12 @@ function restoreSnap(i){
 }
 function lookView(){
   const m=$('#modal');let ic=prefs().icons||'color';
-  m.innerHTML=`<form class="dlg" id="lform" novalidate><h2>Aspetto e colori</h2><p class="mh" style="margin-top:0">Icone dei mobili</p><div class="seg full" role="group" aria-label="Stile icone">${[['color','Colorate'],['mono','Grigie'],['line','A linee']].map(([k,l])=>`<button type="button" class="${ic===k?'on':''}" data-ic="${k}">${l}</button>`).join('')}</div><p class="hint">«A linee» usa le icone semplici blu per i sei mobili classici; le altre diventano grigie.</p><p class="mh">Nomi dei colori</p><p class="hint">Dai un significato ai colori, ad esempio «Da buttare» o «Natale». I nomi compaiono in una legenda sulla mappa.</p>${COLORS.map((n,i)=>`<div class="fld" style="flex-direction:row;align-items:center;gap:10px"><i class="sw" style="background:var(--c${i+1});width:28px;height:28px;flex:none;cursor:default"></i><span class="inp" style="flex:1"><input data-cn="${i}" maxlength="20" placeholder="${n}" value="${esc((prefs().cn&&prefs().cn[i])||'')}" aria-label="Nome del colore ${n}"></span></div>`).join('')}<div class="drow"><button type="button" class="btn" data-x="1">Indietro</button><button type="submit" class="btn pri">Salva</button></div></form>`;
+  m.innerHTML=`<form class="dlg" id="lform" novalidate><h2>Aspetto e colori</h2><p class="mh" style="margin-top:0">Tema</p><div class="thl" id="thl">${[['','Classico','#1F5FBF','#1F5FBF']].concat(THEMES).map(t=>`<button type="button" data-th="${t[0]}" class="${(prefs().theme||'')===t[0]?'on':''}">${t[1]}<span><i style="background:${t[2]}"></i><i style="background:${t[3]}"></i></span></button>`).join('')}</div><p class="hint">Cambia i colori dell'app. Mobili e Stanza hanno ciascuna il suo colore.</p><p class="mh">Icone dei mobili</p><div class="seg full" role="group" aria-label="Stile icone">${[['color','Colorate'],['mono','Grigie'],['line','A linee']].map(([k,l])=>`<button type="button" class="${ic===k?'on':''}" data-ic="${k}">${l}</button>`).join('')}</div><p class="hint">«A linee» usa le icone semplici blu per i sei mobili classici; le altre diventano grigie.</p><p class="mh">Nomi dei colori</p><p class="hint">Dai un significato ai colori, ad esempio «Da buttare» o «Natale». I nomi compaiono in una legenda sulla mappa.</p>${COLORS.map((n,i)=>`<div class="fld" style="flex-direction:row;align-items:center;gap:10px"><i class="sw" style="background:var(--c${i+1});width:28px;height:28px;flex:none;cursor:default"></i><span class="inp" style="flex:1"><input data-cn="${i}" maxlength="20" placeholder="${n}" value="${esc((prefs().cn&&prefs().cn[i])||'')}" aria-label="Nome del colore ${n}"></span></div>`).join('')}<div class="drow"><button type="button" class="btn" data-x="1">Indietro</button><button type="submit" class="btn pri">Salva</button></div></form>`;
   m.hidden=false;
   m.onclick=e=>{
     if(e.target===m){closeM();return;}
     const b=e.target.closest('button');if(!b) return;
+    if(b.dataset.th!==undefined){const v=b.dataset.th;if(v) prefs().theme=v;else delete prefs().theme;save();applyPref();m.querySelectorAll('[data-th]').forEach(x=>x.classList.toggle('on',x===b));return;}
     if(b.dataset.ic){ic=b.dataset.ic;m.querySelectorAll('[data-ic]').forEach(x=>x.classList.toggle('on',x===b));}
     else if(b.dataset.x) openMenu();
   };
