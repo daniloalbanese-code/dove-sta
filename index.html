@@ -3224,11 +3224,12 @@ const csvN=s=>String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[̀-�
 const csvQ=(v,d)=>{v=String(v==null?'':v);return(v.indexOf(d)>=0||/["\r\n]/.test(v))?'"'+v.replace(/"/g,'""')+'"':v;};
 function csvBuild(r,d,empty){
   const rows=[CSVH];
-  if(empty){
+  if(empty==='ex'){
     rows.push(['Armadio','Armadio','','Coperte di lana','2','Tieni','','Chiave nel cassetto']);
     rows.push(['','','','Piumino','','','','']);
     rows.push(['Scatola Natale','Scatola','Armadio','Palline','12','','','']);
     rows.push(['','','','Luci','','','','']);
+  }else if(empty){
   }else r.furn.forEach(f=>{
     const base=[f.name,(TYPES[f.type]&&TYPES[f.type].label)||'',f.par?((r.furn.find(x=>x.id===f.par)||{}).name||''):''];
     if(!f.items.length) rows.push([...base,'','','','',f.note||'']);
@@ -3373,7 +3374,7 @@ function csvDl(name,text,msg){
 }
 function csvExpView(){
   const m=$('#modal'),r=R();
-  m.innerHTML=`<div class="dlg"><h2>Esporta in CSV</h2><p class="hint">Crea un file con i mobili e il contenuto di «${esc(r.name)}». Aprilo con Excel o Fogli Google, aggiungi righe e ricaricalo da «Importa da CSV».</p><div class="mlist"><button type="button" class="btn pri" data-c="dl">Scarica il file con quello che c’è</button><button type="button" class="btn" data-c="tpl">Scarica il modello vuoto</button><button type="button" class="btn" data-c="cp">Copia il testo</button></div><p class="hint" id="csvMsg" aria-live="polite" style="margin-top:10px"></p><div class="drow"><button type="button" class="btn" data-c="back">Indietro</button></div></div>`;
+  m.innerHTML=`<div class="dlg"><h2>Esporta in CSV</h2><p class="hint">Crea un file con i mobili e il contenuto di «${esc(r.name)}». Aprilo con Excel o Fogli Google, aggiungi righe e ricaricalo da «Importa da CSV».</p><p class="hint">Colonne: <b>Mobile</b> (il nome), <b>Tipo</b> (Armadio, Scatola…), <b>Dentro a</b> (un altro mobile), <b>Oggetto</b>, <b>Quantità</b>, <b>Stato</b> (Tieni, Da buttare, Da regalare, Da vendere), <b>Di chi</b>, <b>Note mobile</b>. Per più oggetti nello stesso mobile, lascia vuoto il nome del mobile nelle righe sotto.</p><div class="mlist"><button type="button" class="btn pri" data-c="dl">Scarica il file con quello che c’è</button><button type="button" class="btn" data-c="tpl">Scarica il modello vuoto</button><button type="button" class="btn" data-c="ex">Scarica un esempio compilato</button><button type="button" class="btn" data-c="cp">Copia il testo</button></div><p class="hint" id="csvMsg" aria-live="polite" style="margin-top:10px"></p><div class="drow"><button type="button" class="btn" data-c="back">Indietro</button></div></div>`;
   m.hidden=false;
   const msg=t=>{const e=$('#csvMsg');if(e) e.textContent=t;};
   m.onclick=e=>{
@@ -3383,6 +3384,7 @@ function csvExpView(){
     if(a==='back') datiView();
     else if(a==='dl') csvDl('dove-sta-'+csvN(r.name).replace(/ /g,'-')+'-'+today()+'.csv',csvBuild(r,';',false),msg);
     else if(a==='tpl') csvDl('dove-sta-modello.csv',csvBuild(r,';',true),msg);
+    else if(a==='ex') csvDl('dove-sta-esempio.csv',csvBuild(r,';','ex'),msg);
     else if(a==='cp'){
       const t=csvBuild(r,'\t',false);
       const fb=()=>{try{const x=document.createElement('textarea');x.value=t;x.style.cssText='position:fixed;opacity:0';document.body.appendChild(x);x.select();const ok=document.execCommand('copy');x.remove();msg(ok?'Testo copiato. Incollalo in Excel o Fogli Google.':'Non riesco a copiare qui.');}catch(_){msg('Non riesco a copiare qui.');}};
