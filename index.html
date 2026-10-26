@@ -6,11 +6,11 @@
 <meta name="theme-color" content="#F6F8F8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Dove Stapp">
+<meta name="apple-mobile-web-app-title" content="Dove Sta">
 <link rel="manifest" href="manifest.webmanifest?v=2">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Dove Stapp</title>
+<title>Dove Sta</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@400;500;600;700&display=swap">
@@ -407,7 +407,7 @@ details>summary{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 </head><body><div id="app">
   <header class="band pad">
-    <h1><svg class="mark" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v11h-8v7H3z" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="miter"/><circle cx="8.5" cy="8.5" r="2.2" fill="var(--accent)"/></svg>Dove Stapp</h1>
+    <h1><svg class="mark" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v11h-8v7H3z" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="miter"/><circle cx="8.5" cy="8.5" r="2.2" fill="var(--accent)"/></svg>Dove Sta</h1>
     <div class="roomsel">
       <select id="roomSel" aria-label="Stanza"></select>
       <button class="iconbtn" id="newRoom" type="button" aria-label="Nuova stanza">+</button>
@@ -3080,7 +3080,7 @@ const GUIDE=[
 ];
 let guideKeep=true;
 const HELP=[
-['🏠','Cos’è Dove Stapp','<p>È la mappa della tua casa. Disegni le stanze, ci metti mobili e scatole e scrivi cosa c’è dentro. Quando cerchi un oggetto, la mappa ti mostra subito dove si trova.</p><p>Funziona anche senza internet. I dati restano sul tuo telefono; se vuoi, li condividi con la famiglia.</p>'],
+['🏠','Cos’è Dove Sta','<p>È la mappa della tua casa. Disegni le stanze, ci metti mobili e scatole e scrivi cosa c’è dentro. Quando cerchi un oggetto, la mappa ti mostra subito dove si trova.</p><p>Funziona anche senza internet. I dati restano sul tuo telefono; se vuoi, li condividi con la famiglia.</p>'],
 ['🧭','Muoversi sulla mappa','<ul><li><b>Un dito:</b> sposta la mappa.</li><li><b>Due dita:</b> avvicini o allontani; girandole ruoti la mappa di 90°.</li><li><b>Pulsanti a destra:</b> + e − per lo zoom, il quadratino per vedere tutta la stanza, la freccia circolare per ruotare di 90°. L’ultima rotazione resta anche nelle stampe.</li><li><b>Frecce in alto a sinistra:</b> annullano o rifanno l’ultima modifica.</li><li><b>Gesto indietro del telefono:</b> chiude la finestra aperta o torna alla schermata principale.</li></ul>'],
 ['✏️','Disegnare una stanza','<p>Tocca <b>+</b> in alto, dai un nome alla stanza e scegli come cominciare:</p><ul><li><b>Carica piantina:</b> usi la foto o il disegno della stanza. L’app riconosce da sola muri, porte e finestre.</li><li><b>Disegna righe:</b> tocchi gli angoli uno dopo l’altro; i muri vengono dritti.</li><li><b>Mano libera:</b> traccia la forma col dito e l’app la ripulisce.</li><li><b>Stanza rettangolare:</b> scrivi solo larghezza e lunghezza.</li></ul><p>Se sbagli, «Cancella i muri» nella scheda Stanza ricomincia. Per eliminare una stanza intera: ⋯ › Elimina questa stanza.</p>'],
 ['📐','Piantina da foto','<ol><li>Crea una stanza e scegli <b>Carica piantina</b>.</li><li>L’app disegna perimetro, muri interni, porte e finestre.</li><li>Scrivi quanto è lunga la linea arancione (cerca la misura sulla piantina): l’app calcola tutte le altre. Se non la sai, premi «Non lo so» e correggi dopo.</li><li>Controlla il disegno e trascina gli angoli se serve. Poi premi <b>Ok, salva</b>.</li></ol><p>In Mobili vedrai solo i muri, senza la foto. La foto resta in Stanza › Altro › «Foto della piantina». Se il riconoscimento non va bene, scegli «Ricalco a mano». Le piantine con muri ben marcati funzionano meglio.</p>'],
@@ -3312,7 +3312,7 @@ function qrLabelCanvas(r,f){
   const sub=(up.length?up.join(' → ')+' · ':'')+r.name;
   let fs2=32;do{c.font='500 '+fs2+'px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';fs2-=2;}while(c.measureText(sub).width>W-50&&fs2>16);
   c.fillStyle='#444';c.fillText(sub,W/2,oy+qs+112);
-  c.fillStyle='#777';c.font='500 24px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';c.fillText('Dove Stapp · inquadra con la fotocamera',W/2,oy+qs+158);
+  c.fillStyle='#777';c.font='500 24px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';c.fillText('Dove Sta · inquadra con la fotocamera',W/2,oy+qs+158);
   c.strokeStyle='#000';c.lineWidth=4;c.strokeRect(2,2,W-4,Hh-4);
   return cv;
 }
@@ -3638,8 +3638,8 @@ function syncView(){
     }
     else if(a==='copy'){try{await navigator.clipboard.writeText(sy.fam);toast('Codice copiato.');}catch(_){toast('Tieni premuto sul codice per copiarlo.');}}
     else if(a==='share'){
-      const txt='Entra nella mia mappa di casa su Dove Stapp: '+syLink();
-      try{if(navigator.share){await navigator.share({title:'Dove Stapp',text:'Entra nella mia mappa di casa su Dove Stapp.',url:syLink()});}else{await navigator.clipboard.writeText(txt);toast('Invito copiato: incollalo in un messaggio.');}}catch(_){}
+      const txt='Entra nella mia mappa di casa su Dove Sta: '+syLink();
+      try{if(navigator.share){await navigator.share({title:'Dove Sta',text:'Entra nella mia mappa di casa su Dove Sta.',url:syLink()});}else{await navigator.clipboard.writeText(txt);toast('Invito copiato: incollalo in un messaggio.');}}catch(_){}
     }
     else if(a==='now'){b.disabled=true;b.textContent='Sincronizzo…';await syncNow('manual');syncView();}
     else if(a==='off'){
@@ -4055,7 +4055,7 @@ $('#vwSeg').addEventListener('click',e=>{const b=e.target.closest('button[data-v
 /* prima apertura: benvenuto con codice famiglia */
 function welcomeView(){
   const m=$('#modal');
-  m.innerHTML=`<div class="dlg"><h2>Benvenuto in Dove Stapp</h2><p class="infop">Da dove vuoi partire?</p><div class="mlist"><button type="button" class="btn pri" data-w="join">Ho un codice famiglia</button><button type="button" class="btn" data-w="new">Parto da zero con la mia casa</button><button type="button" class="btn" data-w="demo">Guarda prima un esempio</button></div><p class="hint">Il codice famiglia te lo dà chi usa già l’app (⋯ › Famiglia): collega i telefoni di casa, così la mappa è uguale su tutti.</p></div>`;
+  m.innerHTML=`<div class="dlg"><h2>Benvenuto in Dove Sta</h2><p class="infop">Da dove vuoi partire?</p><div class="mlist"><button type="button" class="btn pri" data-w="join">Ho un codice famiglia</button><button type="button" class="btn" data-w="new">Parto da zero con la mia casa</button><button type="button" class="btn" data-w="demo">Guarda prima un esempio</button></div><p class="hint">Il codice famiglia te lo dà chi usa già l’app (⋯ › Famiglia): collega i telefoni di casa, così la mappa è uguale su tutti.</p></div>`;
   m.hidden=false;
   m.onclick=e=>{
     const b=e.target.closest('button[data-w]');if(!b) return;
