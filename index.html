@@ -2372,7 +2372,7 @@ function backupNote(){
 }
 function datiView(){
   const m=$('#modal');
-  m.innerHTML=`<div class="dlg"><h2>Copie di sicurezza</h2>${backupNote()}<p class="hint">Una copia è un file con tutte le tue stanze e i tuoi oggetti. Serve se cambi telefono o se qualcosa va storto.</p><div class="mlist"><button type="button" class="btn pri" data-d="exp">Salva una copia</button><button type="button" class="btn" data-d="imp">Carica una copia salvata</button></div><p class="mh">Foglio di calcolo (Excel)</p><div class="mlist"><button type="button" class="btn" data-d="csvx">Esporta in CSV</button><button type="button" class="btn" data-d="csvi">Importa mobili e oggetti da CSV</button></div><div class="mlist"><button type="button" class="btn" data-d="ver">Versioni precedenti dell’app</button></div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-d="back">Indietro</button></div></div>`;
+  m.innerHTML=`<div class="dlg"><h2>Copie di sicurezza</h2>${backupNote()}<p class="hint">Una copia è un file con tutte le tue stanze e i tuoi oggetti. Serve se cambi telefono o se qualcosa va storto.</p><div class="mlist"><button type="button" class="btn pri" data-d="exp">Salva una copia</button><button type="button" class="btn" data-d="imp">Carica una copia salvata</button></div><p class="mh">Foglio di calcolo (Excel)</p><div class="mlist"><button type="button" class="btn" data-d="csvx">Modello Excel e esportazione</button><button type="button" class="btn" data-d="csvi">Importa mobili e oggetti da Excel</button></div><div class="mlist"><button type="button" class="btn" data-d="ver">Versioni precedenti dell’app</button></div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-d="back">Indietro</button></div></div>`;
   m.hidden=false;
   m.onclick=e=>{
     if(e.target===m){closeM();return;}
@@ -3263,12 +3263,13 @@ function csvTypeFor(tipo,name){
   return k||'scatola';
 }
 function csvPlan(text,r){
-  const rows=csvParse(text),P={furn:[],err:[],warn:[],nNew:0,nOld:0,iAdd:0,iUpd:0,iSame:0};
+  const rows=Array.isArray(text)?text:csvParse(text),P={furn:[],err:[],warn:[],nNew:0,nOld:0,iAdd:0,iUpd:0,iSame:0};
   if(!rows.length){P.err.push('Il file è vuoto.');return P;}
-  const syn={mobile:['mobile','mobili','contenitore'],tipo:['tipo'],par:['dentro a','dentro','si trova dentro','contenuto in'],item:['oggetto','oggetti','cosa','contenuto','articolo'],q:['quantita','qta','q ta','numero','n'],st:['stato'],ow:['di chi','proprietario'],note:['note mobile','note','nota']};
+  const syn={mobile:['mobile','mobili','contenitore'],tipo:['tipo'],par:['dentro a','dentro','si trova dentro','contenuto in'],item:['oggetto','oggetti','cosa','contenuto','articolo'],q:['quantita','qta','q ta','numero'],st:['stato'],ow:['di chi','proprietario'],note:['note mobile','note sul mobile','note','nota']};
   const head=rows[0].map(csvN),col={};
-  Object.keys(syn).forEach(k=>{const i=head.findIndex(h=>syn[k].includes(h));if(i>=0) col[k]=i;});
-  if(col.mobile==null){P.err.push('Non trovo la colonna «Mobile» nella prima riga. Usa il modello: lo scarichi da «Esporta in CSV».');return P;}
+  const used=new Set();
+  Object.keys(syn).forEach(k=>{const i=head.findIndex((h,x)=>!used.has(x)&&syn[k].some(y=>h===y||h.indexOf(y+' ')===0));if(i>=0){col[k]=i;used.add(i);}});
+  if(col.mobile==null){P.err.push('Non trovo la colonna «Mobile» nella prima riga. Usa il modello: lo scarichi da «Modello Excel e esportazione».');return P;}
   const stMap={};Object.keys(STS).forEach(k=>{stMap[csvN(k)]=k;stMap[csvN(STS[k])]=k;});
   const by={},order=[];let lastF=null;
   rows.slice(1).forEach((a,ri)=>{
@@ -3364,9 +3365,138 @@ function wzAt(p){
   if(r.closed&&r.pts.length>=3&&!wzInP(r.pts,p.x,p.y)){toast('Qui è fuori dalla stanza: tocca un punto dentro.');return;}
   f.x=snap(p.x);f.y=snap(p.y);save();wzNext(1);
 }
-function csvDl(name,text,msg){
+/* ===== File Excel (.xlsx): scrittura e lettura senza librerie ===== */
+const HX=['Mobile\n(nome del mobile o della scatola)','Tipo\n(scegli dalla lista)','Dentro a\n(nome di un altro mobile)','Oggetto\n(cosa c’è dentro)','Quantità\n(un numero)','Stato\n(scegli dalla lista)','Di chi\n(facoltativo)','Note sul mobile\n(facoltativo)'];
+const crcT=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=-1;for(let i=0;i<b.length;i++) c=crcT[(c^b[i])&255]^(c>>>8);return (~c)>>>0;};
+function zipStore(files){
+  const enc=new TextEncoder(),parts=[],cd=[];let off=0;
+  files.forEach(f=>{
+    const nm=enc.encode(f.name),data=enc.encode(f.text),crc=crc32(data),sz=data.length;
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(12,0x21,true);lh.setUint32(14,crc,true);lh.setUint32(18,sz,true);lh.setUint32(22,sz,true);lh.setUint16(26,nm.length,true);
+    parts.push(new Uint8Array(lh.buffer),nm,data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(14,0x21,true);ch.setUint32(16,crc,true);ch.setUint32(20,sz,true);ch.setUint32(24,sz,true);ch.setUint16(28,nm.length,true);ch.setUint32(42,off,true);
+    cd.push(new Uint8Array(ch.buffer),nm);off+=30+nm.length+sz;
+  });
+  const cds=cd.reduce((a,x)=>a+x.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cds,true);e.setUint32(16,off,true);
+  return new Blob(parts.concat(cd,[new Uint8Array(e.buffer)]),{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+const xe=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function xlSheet(sh,first){
+  let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"'+(first?' tabSelected="1"':'')+'>'+(sh.freeze?'<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>':'')+'</sheetView></sheetViews><cols>'+sh.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')+'</cols><sheetData>';
+  sh.rows.forEach((r,ri)=>{
+    x+=`<row r="${ri+1}"${sh.freeze&&ri===0?' ht="50" customHeight="1"':''}>`;
+    r.forEach((v,ci)=>{
+      if(v===''||v==null) return;
+      const st=sh.style(ri,ci),ref=String.fromCharCode(65+ci)+(ri+1);
+      x+=typeof v==='number'?`<c r="${ref}" s="${st}"><v>${v}</v></c>`:`<c r="${ref}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${xe(v)}</t></is></c>`;
+    });
+    x+='</row>';
+  });
+  x+='</sheetData>';
+  if(sh.dv&&sh.dv.length) x+=`<dataValidations count="${sh.dv.length}">`+sh.dv.map(d=>`<dataValidation type="list" allowBlank="1" showErrorMessage="0" sqref="${d.col}2:${d.col}1000"><formula1>"${xe(d.list.join(','))}"</formula1></dataValidation>`).join('')+'</dataValidations>';
+  return x+'</worksheet>';
+}
+function xlsxBlob(sheets){
+  const H='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',N='http://schemas.openxmlformats.org/';
+  const files=[
+    {name:'[Content_Types].xml',text:H+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+sheets.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>'},
+    {name:'_rels/.rels',text:H+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+N+'officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'},
+    {name:'xl/workbook.xml',text:H+'<workbook xmlns="'+N+'spreadsheetml/2006/main" xmlns:r="'+N+'officeDocument/2006/relationships"><sheets>'+sheets.map((s,i)=>`<sheet name="${xe(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets></workbook>'},
+    {name:'xl/_rels/workbook.xml.rels',text:H+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="${N}officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')+`<Relationship Id="rId${sheets.length+1}" Type="${N}officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:'xl/styles.xml',text:H+'<styleSheet xmlns="'+N+'spreadsheetml/2006/main"><fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="15"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1F5FBF"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'}
+  ].concat(sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:xlSheet(s,i===0)})));
+  return zipStore(files);
+}
+const XL_TIPI=()=>Object.keys(TYPES).filter(k=>k!=='custom'&&TYPES[k].w).map(k=>TYPES[k].label);
+function xlTable(name,rows){
+  return {name,rows:[HX].concat(rows),widths:[30,20,26,30,14,20,16,32],freeze:true,style:(ri)=>ri===0?1:0,dv:[{col:'B',list:XL_TIPI()},{col:'F',list:Object.keys(STS).map(k=>STS[k])}]};
+}
+function xlGuide(){
+  const L=[['Dove Sta · Come compilare il foglio «Importa»',3],
+  ['Scrivi i tuoi dati nel foglio «Importa». I fogli «Esempio» e «Istruzioni» vengono ignorati dall’app.',2],
+  ['Una riga per ogni oggetto. Per più oggetti nello stesso mobile, scrivi il nome del mobile solo nella prima riga e lascia vuota la colonna «Mobile» nelle righe sotto.',2],
+  ['',2],
+  ['Le colonne',4],
+  ['Mobile (obbligatoria): il nome del mobile o della scatola, uguale a come si chiama nell’app. Se non esiste, l’app lo crea.',2],
+  ['Tipo (facoltativa): scegli dalla lista, per esempio Armadio o Scatola. Serve solo per i mobili nuovi. Se la lasci vuota, l’app prova a indovinarla dal nome.',2],
+  ['Dentro a (facoltativa): il nome di un altro mobile in cui sta questo, per esempio una scatola dentro un armadio.',2],
+  ['Oggetto: cosa c’è dentro. Se lo lasci vuoto, viene creato solo il mobile.',2],
+  ['Quantità (facoltativa): un numero.',2],
+  ['Stato (facoltativa): scegli dalla lista. Tieni, Da buttare, Da regalare, Da vendere.',2],
+  ['Di chi (facoltativa): il nome di chi possiede l’oggetto.',2],
+  ['Note sul mobile (facoltativa): una nota che resta sul mobile.',2],
+  ['',2],
+  ['Come si importa',4],
+  ['Nell’app: ⋯ › Copie di sicurezza dei dati › Importa mobili e oggetti da Excel. Scegli questo file. Gli oggetti vengono messi nella stanza che hai aperta in quel momento. Le stanze non si creano da qui.',2],
+  ['Prima di importare l’app mostra un’anteprima e ti chiede se aggiungere gli oggetti o sostituire il contenuto dei mobili già presenti. Se importi due volte lo stesso file, non crea doppioni.',2],
+  ['I mobili nuovi vengono messi in uno spazio libero, poi una procedura guidata ti aiuta a posizionarli.',2]];
+  return {name:'Istruzioni',rows:L.map(a=>[a[0]]),widths:[110],style:(ri)=>L[ri][1]};
+}
+const XL_ESEMPIO=[['Armadio','Armadio','','Coperte di lana',2,'Tieni','','Chiave nel cassetto'],['','','','Piumino','','','',''],['','','','Sciarpe e guanti','','','Marco',''],['Scatola Natale','Scatola','Armadio','Palline di vetro',12,'','',''],['','','','Luci','','','',''],['Cassettiera camera','Cassettiera','','Lenzuola',4,'','',''],['','','','Asciugamani vecchi','','Da buttare','','']];
+function xlRowsCur(r){
+  const rows=[];
+  r.furn.forEach(f=>{
+    const base=[f.name,(TYPES[f.type]&&TYPES[f.type].label)||'',f.par?((r.furn.find(x=>x.id===f.par)||{}).name||''):''];
+    if(!f.items.length) rows.push(base.concat(['','','','',f.note||'']));
+    else f.items.forEach((i,k)=>rows.push(k?['','','',i.t,i.q>1?i.q:'',i.st?STS[i.st]:'',i.ow||'','']:base.concat([i.t,i.q>1?i.q:'',i.st?STS[i.st]:'',i.ow||'',f.note||''])));
+  });
+  return rows;
+}
+async function zipRead(buf){
+  const dv=new DataView(buf),u8=new Uint8Array(buf);let e=-1;
+  for(let i=buf.byteLength-22;i>=Math.max(0,buf.byteLength-65600);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break;}}
+  if(e<0) throw new Error('zip');
+  const n=dv.getUint16(e+10,true),out={};let p=dv.getUint32(e+16,true);
+  for(let k=0;k<n;k++){
+    if(dv.getUint32(p,true)!==0x02014b50) break;
+    const meth=dv.getUint16(p+10,true),cs=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lo=dv.getUint32(p+42,true);
+    out[new TextDecoder().decode(u8.subarray(p+46,p+46+nl))]={meth,cs,lo};p+=46+nl+el+cl;
+  }
+  return async name=>{
+    const f=out[name];if(!f) return null;
+    const ln=dv.getUint16(f.lo+26,true),le=dv.getUint16(f.lo+28,true),st=f.lo+30+ln+le,raw=u8.subarray(st,st+f.cs);
+    if(f.meth===0) return new TextDecoder().decode(raw);
+    if(typeof DecompressionStream==='undefined') throw new Error('nodec');
+    const ds=new DecompressionStream('deflate-raw'),w=ds.writable.getWriter();w.write(raw);w.close();
+    return new TextDecoder().decode(await new Response(ds.readable).arrayBuffer());
+  };
+}
+async function xlsxRows(buf){
+  const get=await zipRead(buf),P=s=>new DOMParser().parseFromString(s,'text/xml');
+  const wb=P(await get('xl/workbook.xml')),rl=P(await get('xl/_rels/workbook.xml.rels')),ssx=await get('xl/sharedStrings.xml');
+  const ss=[];
+  if(ssx) Array.from(P(ssx).getElementsByTagName('si')).forEach(si=>{ss.push(Array.from(si.getElementsByTagName('t')).filter(t=>t.parentNode.nodeName!=='rPh').map(t=>t.textContent).join(''));});
+  const shs=Array.from(wb.getElementsByTagName('sheet'));
+  const sh=shs.find(s=>csvN(s.getAttribute('name'))==='importa')||shs[0];
+  if(!sh) throw new Error('nosheet');
+  const rid=sh.getAttribute('r:id')||sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');
+  const rel=Array.from(rl.getElementsByTagName('Relationship')).find(x=>x.getAttribute('Id')===rid);
+  let tg=rel.getAttribute('Target').replace(/^\//,'');if(!/^xl\//.test(tg)) tg='xl/'+tg;
+  const sx=P(await get(tg)),rows=[];
+  Array.from(sx.getElementsByTagName('row')).forEach(rw=>{
+    const a=[];
+    Array.from(rw.getElementsByTagName('c')).forEach(c=>{
+      const m=/^([A-Z]+)/.exec(c.getAttribute('r')||'');if(!m) return;
+      let ci=0;for(const ch of m[1]) ci=ci*26+ch.charCodeAt(0)-64;ci--;
+      const t=c.getAttribute('t'),v=c.getElementsByTagName('v')[0];
+      let val='';
+      if(t==='s') val=ss[+(v?v.textContent:-1)]||'';
+      else if(t==='inlineStr') val=Array.from(c.getElementsByTagName('t')).map(x=>x.textContent).join('');
+      else if(v) val=v.textContent;
+      a[ci]=val;
+    });
+    for(let i=0;i<a.length;i++) if(a[i]==null) a[i]='';
+    rows.push(a);
+  });
+  return rows.filter(a=>a.some(x=>String(x).trim()));
+}
+function dlBlob(name,blob,msg){
   try{
-    const u=URL.createObjectURL(new Blob(['﻿'+text],{type:'text/csv;charset=utf-8'})),l=document.createElement('a');
+    const u=URL.createObjectURL(blob),l=document.createElement('a');
     l.href=u;l.download=name;document.body.appendChild(l);l.click();l.remove();
     setTimeout(()=>URL.revokeObjectURL(u),4000);
     msg('Download avviato. Se il file non compare, usa «Copia il testo».');
@@ -3374,7 +3504,7 @@ function csvDl(name,text,msg){
 }
 function csvExpView(){
   const m=$('#modal'),r=R();
-  m.innerHTML=`<div class="dlg"><h2>Esporta in CSV</h2><p class="hint">Crea un file con i mobili e il contenuto di «${esc(r.name)}». Aprilo con Excel o Fogli Google, aggiungi righe e ricaricalo da «Importa da CSV».</p><p class="hint">Colonne: <b>Mobile</b> (il nome), <b>Tipo</b> (Armadio, Scatola…), <b>Dentro a</b> (un altro mobile), <b>Oggetto</b>, <b>Quantità</b>, <b>Stato</b> (Tieni, Da buttare, Da regalare, Da vendere), <b>Di chi</b>, <b>Note mobile</b>. Per più oggetti nello stesso mobile, lascia vuoto il nome del mobile nelle righe sotto.</p><div class="mlist"><button type="button" class="btn pri" data-c="dl">Scarica il file con quello che c’è</button><button type="button" class="btn" data-c="tpl">Scarica il modello vuoto</button><button type="button" class="btn" data-c="ex">Scarica un esempio compilato</button><button type="button" class="btn" data-c="cp">Copia il testo</button></div><p class="hint" id="csvMsg" aria-live="polite" style="margin-top:10px"></p><div class="drow"><button type="button" class="btn" data-c="back">Indietro</button></div></div>`;
+  m.innerHTML=`<div class="dlg"><h2>Esporta in Excel</h2><p class="hint">Un solo file Excel con tre fogli: <b>Importa</b> (i mobili e il contenuto di «${esc(r.name)}», o vuoto), <b>Esempio</b> e <b>Istruzioni</b>. Compila «Importa» e caricalo da «Importa da Excel».</p><div class="mlist"><button type="button" class="btn pri" data-c="tpl">Scarica il modello vuoto</button><button type="button" class="btn" data-c="dl">Scarica con quello che c’è già</button><button type="button" class="btn" data-c="cp">Copia il testo</button></div><p class="hint" id="csvMsg" aria-live="polite" style="margin-top:10px"></p><div class="drow"><button type="button" class="btn" data-c="back">Indietro</button></div></div>`;
   m.hidden=false;
   const msg=t=>{const e=$('#csvMsg');if(e) e.textContent=t;};
   m.onclick=e=>{
@@ -3382,9 +3512,8 @@ function csvExpView(){
     const b=e.target.closest('button[data-c]');if(!b) return;
     const a=b.dataset.c;
     if(a==='back') datiView();
-    else if(a==='dl') csvDl('dove-sta-'+csvN(r.name).replace(/ /g,'-')+'-'+today()+'.csv',csvBuild(r,';',false),msg);
-    else if(a==='tpl') csvDl('dove-sta-modello.csv',csvBuild(r,';',true),msg);
-    else if(a==='ex') csvDl('dove-sta-esempio.csv',csvBuild(r,';','ex'),msg);
+    else if(a==='tpl') dlBlob('dove-sta-modello.xlsx',xlsxBlob([xlTable('Importa',[]),xlTable('Esempio',XL_ESEMPIO),xlGuide()]),msg);
+    else if(a==='dl') dlBlob('dove-sta-'+csvN(r.name).replace(/ /g,'-')+'-'+today()+'.xlsx',xlsxBlob([xlTable('Importa',xlRowsCur(r)),xlTable('Esempio',XL_ESEMPIO),xlGuide()]),msg);
     else if(a==='cp'){
       const t=csvBuild(r,'\t',false);
       const fb=()=>{try{const x=document.createElement('textarea');x.value=t;x.style.cssText='position:fixed;opacity:0';document.body.appendChild(x);x.select();const ok=document.execCommand('copy');x.remove();msg(ok?'Testo copiato. Incollalo in Excel o Fogli Google.':'Non riesco a copiare qui.');}catch(_){msg('Non riesco a copiare qui.');}};
@@ -3394,10 +3523,14 @@ function csvExpView(){
 }
 function csvImpView(text){
   const m=$('#modal'),r=R();let data=text||'';
-  m.innerHTML=`<div class="dlg"><h2>Importa da CSV</h2><p class="hint">I mobili e gli oggetti del file vengono messi in «${esc(r.name)}». Le stanze non si creano da qui.</p><div class="tools" style="margin-bottom:8px"><label class="btn" style="position:relative;display:inline-flex;align-items:center;overflow:hidden">Scegli il file<input type="file" id="csvFile" class="phin" accept=".csv,.txt,text/csv,text/plain,text/tab-separated-values"></label></div><p class="hint" id="csvName"></p><label class="fld"><span>Oppure incolla qui il testo copiato da Excel</span><textarea id="csvTxt" rows="4"></textarea></label><p class="err" id="csvErr" hidden></p><div class="drow"><button type="button" class="btn" data-c="back">Indietro</button><button type="button" class="btn pri" data-c="chk">Controlla</button></div></div>`;
+  m.innerHTML=`<div class="dlg"><h2>Importa da Excel</h2><p class="hint">I mobili e gli oggetti del file vengono messi in «${esc(r.name)}». Le stanze non si creano da qui.</p><div class="tools" style="margin-bottom:8px"><label class="btn" style="position:relative;display:inline-flex;align-items:center;overflow:hidden">Scegli il file<input type="file" id="csvFile" class="phin" accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain"></label></div><p class="hint" id="csvName"></p><label class="fld"><span>Oppure incolla qui il testo copiato da Excel</span><textarea id="csvTxt" rows="4"></textarea></label><p class="err" id="csvErr" hidden></p><div class="drow"><button type="button" class="btn" data-c="back">Indietro</button><button type="button" class="btn pri" data-c="chk">Controlla</button></div></div>`;
   m.hidden=false;
   m.querySelector('#csvFile').onchange=e=>{
     const f=e.target.files&&e.target.files[0];if(!f) return;
+    if(/\.xlsx$/i.test(f.name)||/spreadsheetml/.test(f.type)){
+      f.arrayBuffer().then(buf=>xlsxRows(buf)).then(rows=>{data=rows;$('#csvName').textContent='File scelto: '+f.name;const er=$('#csvErr');er.hidden=true;}).catch(()=>{data='';$('#csvName').textContent='';const er=$('#csvErr');er.textContent='Non riesco a leggere questo file Excel. Prova a salvare il foglio «Importa» come CSV, oppure copia le celle e incollale qui sotto.';er.hidden=false;});
+      return;
+    }
     const rd=new FileReader();rd.onload=()=>{data=String(rd.result||'');$('#csvName').textContent='File scelto: '+f.name;};rd.readAsText(f);
   };
   m.onclick=e=>{
@@ -3405,8 +3538,8 @@ function csvImpView(text){
     const b=e.target.closest('button[data-c]');if(!b) return;
     if(b.dataset.c==='back'){datiView();return;}
     if(b.dataset.c==='chk'){
-      const t=data||$('#csvTxt').value;
-      if(!t.trim()){const er=$('#csvErr');er.textContent='Scegli un file o incolla il testo.';er.hidden=false;return;}
+      const t=(Array.isArray(data)?data.length:data)?data:$('#csvTxt').value;
+      if(Array.isArray(t)?!t.length:!String(t).trim()){const er=$('#csvErr');er.textContent='Scegli un file o incolla il testo.';er.hidden=false;return;}
       csvPreview(t);
     }
   };
