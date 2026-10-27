@@ -3202,12 +3202,7 @@ function exportView(){
         }
         legacyDl();
       });
-      const legacyDl=()=>{try{
-        const u=URL.createObjectURL(new Blob([json],{type:'application/json'})),l=document.createElement('a');
-        l.href=u;l.download='dove-sta-'+today()+'.json';document.body.appendChild(l);l.click();l.remove();
-        setTimeout(()=>URL.revokeObjectURL(u),4000);
-        prefs().lastExp=today();save();msg('Download avviato. Se il file non compare, usa «Copia il testo».');
-      }catch(_){msg('Il download non è disponibile qui. Usa «Copia il testo».');}};
+      const legacyDl=()=>{dlBlob(nm,new Blob([json],{type:'application/json'}),msg,()=>{prefs().lastExp=today();save();});};
     }else if(a==='cp'){
       const fb=()=>{
         try{const t=document.createElement('textarea');t.value=json;t.style.cssText='position:fixed;opacity:0';document.body.appendChild(t);t.select();const ok=document.execCommand('copy');t.remove();msg(ok?'Testo copiato. Incollalo in una nota o in un messaggio a te stesso.':'Non riesco a copiare qui. Apri l’app in Chrome.');}
@@ -3494,11 +3489,25 @@ async function xlsxRows(buf){
   });
   return rows.filter(a=>a.some(x=>String(x).trim()));
 }
-function dlBlob(name,blob,msg){
+function dlBlob(name,blob,msg,ok){
+  const C=window.Capacitor,P=C&&C.Plugins;
+  if(C&&C.isNativePlatform&&C.isNativePlatform()){
+    if(!(P&&P.Filesystem&&P.Share)){msg('Il salvataggio dei file non è disponibile in questa versione. Usa «Copia il testo».');return;}
+    const fr=new FileReader();
+    fr.onload=()=>{
+      P.Filesystem.writeFile({path:name,data:String(fr.result).split(',')[1],directory:'CACHE'})
+        .then(w=>P.Share.share({title:name,files:[w.uri],dialogTitle:'Salva o condividi il file'}))
+        .then(()=>{if(ok) ok();msg('Scegli dove salvarlo o a chi mandarlo.');})
+        .catch(er=>{if(/cancel/i.test(String((er&&er.message)||er))){msg('Annullato.');return;}msg('Non riesco a salvare il file qui. Usa «Copia il testo».');});
+    };
+    fr.onerror=()=>msg('Non riesco a leggere il file.');
+    fr.readAsDataURL(blob);return;
+  }
   try{
     const u=URL.createObjectURL(blob),l=document.createElement('a');
     l.href=u;l.download=name;document.body.appendChild(l);l.click();l.remove();
     setTimeout(()=>URL.revokeObjectURL(u),4000);
+    if(ok) ok();
     msg('Download avviato. Se il file non compare, usa «Copia il testo».');
   }catch(_){msg('Il download non è disponibile qui. Usa «Copia il testo».');}
 }
@@ -3695,11 +3704,11 @@ function qrLabelCanvas(r,f){
 }
 function qrPrint(urls){
   $('#print').innerHTML=`<section class="ppage"><div class="qrgrid">${urls.map(u=>`<img src="${u}" alt="">`).join('')}</div></section>`;
-  try{window.print();}catch(_){toast('La stampa non è disponibile qui. Apri l’app in Chrome, oppure salva l’immagine.');}
+  try{if(window.AndroidPrint&&window.AndroidPrint.print) window.AndroidPrint.print();else window.print();}catch(_){toast('La stampa non è disponibile qui. Apri l’app in Chrome, oppure salva l’immagine.');}
 }
 function qrSave(url,name){
-  try{const a=document.createElement('a');a.href=url;a.download='etichetta-'+String(name||'scatola').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.png';document.body.appendChild(a);a.click();a.remove();toast('Immagine salvata.');}
-  catch(_){toast('Non riesco a salvarla qui. Usa Stampa.');}
+  const fn='etichetta-'+String(name||'scatola').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.png';
+  fetch(url).then(r=>r.blob()).then(bl=>dlBlob(fn,bl,toast)).catch(()=>toast('Non riesco a salvarla qui. Usa Stampa.'));
 }
 function qrLabelView(r,f){
   const cv=qrLabelCanvas(r,f);if(!cv){toast('Non riesco a fare il QR di questo contenitore.');return;}
@@ -3749,7 +3758,7 @@ function printAll(){
   withRooms(760,520,(rm,svg)=>{pages+=`<section class="ppage"><h2>${esc(rm.name)}</h2>${svg}${listHtml(rm)}</section>`;});
   if(todoData().length) pages+=`<section class="ppage"><h2>Da fare</h2>${todoBody(true)}</section>`;
   $('#print').innerHTML=pages;
-  try{window.print();}catch(_){toast('La stampa non è disponibile qui. Apri l’app in Chrome.');}
+  try{if(window.AndroidPrint&&window.AndroidPrint.print) window.AndroidPrint.print();else window.print();}catch(_){toast('La stampa non è disponibile qui. Apri l’app in Chrome.');}
 }
 $('#menuBtn').addEventListener('click',openMenu);
 $('#areaTxt').addEventListener('click',listView);

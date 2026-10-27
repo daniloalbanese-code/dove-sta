@@ -28,7 +28,13 @@ jobs:
           cat > android/app/src/main/java/it/dovesta/app/MainActivity.java <<'EOF'
           package it.dovesta.app;
 
+          import android.content.Context;
           import android.os.Bundle;
+          import android.print.PrintAttributes;
+          import android.print.PrintDocumentAdapter;
+          import android.print.PrintManager;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.WebView;
           import android.view.View;
           import androidx.core.graphics.Insets;
           import androidx.core.view.ViewCompat;
@@ -40,6 +46,17 @@ jobs:
             @Override
             public void onCreate(Bundle savedInstanceState) {
               super.onCreate(savedInstanceState);
+              final WebView wv = getBridge().getWebView();
+              wv.addJavascriptInterface(new Object() {
+                @JavascriptInterface
+                public void print() {
+                  runOnUiThread(() -> {
+                    PrintManager pm = (PrintManager) getSystemService(Context.PRINT_SERVICE);
+                    PrintDocumentAdapter ad = wv.createPrintDocumentAdapter("Dove Sta");
+                    pm.print("Dove Sta", ad, new PrintAttributes.Builder().build());
+                  });
+                }
+              }, "AndroidPrint");
               View v = findViewById(android.R.id.content);
               v.setBackgroundColor(0xFFF6F8F8);
               WindowCompat.getInsetsController(getWindow(), v).setAppearanceLightStatusBars(true);
