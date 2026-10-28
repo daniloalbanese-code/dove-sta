@@ -3492,6 +3492,16 @@ async function xlsxRows(buf){
 function dlBlob(name,blob,msg,ok){
   const C=window.Capacitor,P=C&&C.Plugins;
   if(C&&C.isNativePlatform&&C.isNativePlatform()){
+    if(window.AndroidSave&&window.AndroidSave.save){
+      const fr0=new FileReader();
+      fr0.onload=()=>{
+        window.__saved=r=>{window.__saved=null;if(r===1){if(ok) ok();msg('File salvato.');}else if(r===0) msg('Salvataggio annullato.');else msg('Non riesco a salvare il file qui. Usa «Copia il testo».');};
+        try{window.AndroidSave.save(name,blob.type||'application/octet-stream',String(fr0.result).split(',')[1]);msg('Scegli la cartella e premi Salva.');}
+        catch(_){window.__saved=null;msg('Non riesco a salvare il file qui. Usa «Copia il testo».');}
+      };
+      fr0.onerror=()=>msg('Non riesco a leggere il file.');
+      fr0.readAsDataURL(blob);return;
+    }
     if(!(P&&P.Filesystem&&P.Share)){msg('Il salvataggio dei file non è disponibile in questa versione. Usa «Copia il testo».');return;}
     const fr=new FileReader();
     fr.onload=()=>{
