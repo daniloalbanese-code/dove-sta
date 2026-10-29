@@ -2370,6 +2370,13 @@ function backupNote(){
   const days=Math.floor((Date.now()-new Date(d+'T12:00:00').getTime())/86400000);
   return days>=14?`<p class="hint" style="color:var(--danger);margin:0 0 6px">L’ultima copia dei dati risale a ${days} giorni fa.</p>`:`<p class="hint" style="margin:0 0 6px">Ultima copia dei dati: ${fmtD(d)}.</p>`;
 }
+function geoCopy(){
+  const r=R(),q=v=>Math.round(v*100)/100,pt=o=>[q(o.x),q(o.y)];
+  const t=JSON.stringify({c:r.closed?1:0,p:(r.pts||[]).map(pt),w:(r.walls||[]).map(w=>[pt(w.a),pt(w.b),w.ds?1:0]),o:(r.ops||[]).map(o=>[o.k[0],q(o.x),q(o.y),q(o.w),q(o.a||0),o.fl||0]),f:(r.furn||[]).filter(f=>!f.par).map(f=>[f.type,q(f.x),q(f.y),q(f.w),q(f.d),f.rot||0])});
+  const fb=()=>{closeM();const m=$('#modal');m.hidden=false;m.innerHTML=`<div class="dlg"><h2>Misure della stanza</h2><p class="hint">Tieni premuto sul testo, scegli «Seleziona tutto» e «Copia».</p><textarea id="geoT" rows="8" style="width:100%" readonly></textarea><div class="drow"><button type="button" class="btn" data-m="x">Chiudi</button></div></div>`;$('#geoT').value=t;};
+  try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(()=>toast('Misure copiate. Incollale nella chat.'),fb);closeM();return;}}catch(_){}
+  fb();
+}
 function datiView(){
   const m=$('#modal');
   m.innerHTML=`<div class="dlg"><h2>Copie di sicurezza</h2>${backupNote()}<p class="hint">Una copia è un file con tutte le tue stanze e i tuoi oggetti. Serve se cambi telefono o se qualcosa va storto.</p><div class="mlist"><button type="button" class="btn pri" data-d="exp">Salva una copia</button><button type="button" class="btn" data-d="imp">Carica una copia salvata</button></div><p class="mh">Foglio di calcolo (Excel)</p><div class="mlist"><button type="button" class="btn" data-d="csvx">Modello Excel e esportazione</button><button type="button" class="btn" data-d="csvi">Importa mobili e oggetti da Excel</button></div><div class="mlist"><button type="button" class="btn" data-d="ver">Versioni precedenti dell’app</button></div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-d="back">Indietro</button></div></div>`;
@@ -2389,7 +2396,7 @@ function datiView(){
 function openMenu(){
   const m=$('#modal');
   const B=(a,l)=>`<button type="button" class="btn" data-m="${a}">${l}</button>`;
-  m.innerHTML=`<div class="dlg"><h2>Menu</h2>${storInfo()}${backupNote()}<p class="mh">Aggiungere</p><div class="mlist">${B('phr','Aggiungi oggetti scrivendo una frase')}</div><p class="mh">Vedere</p><div class="mlist">${B('lst','Elenco di tutti i contenitori')}${B('v3d','Vista 3D: cammina nella stanza')}${B('ovr','Panoramica della casa')}${B('todo','Da fare: buttare, regalare, vendere')}</div><p class="mh">Condividere e stampare</p><div class="mlist">${B('sync','Famiglia: '+(sy.fam?'collegata':'collega i telefoni'))}${B('qrs','Etichette QR per i contenitori')}${B('prt','Stampa piantine ed elenco')}</div><p class="mh">Altro</p><div class="mlist">${B('dati','Copie di sicurezza dei dati')}${B('look','Aspetto e colori')}${B('guide','Guida')}${S.demo?B('demo','Cancella l’esempio e riparti da zero'):''}${B('delr','Elimina questa stanza')}</div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-m="x">Chiudi</button></div></div>`;
+  m.innerHTML=`<div class="dlg"><h2>Menu</h2>${storInfo()}${backupNote()}<p class="mh">Aggiungere</p><div class="mlist">${B('phr','Aggiungi oggetti scrivendo una frase')}</div><p class="mh">Vedere</p><div class="mlist">${B('lst','Elenco di tutti i contenitori')}${B('v3d','Vista 3D: cammina nella stanza')}${B('ovr','Panoramica della casa')}${B('todo','Da fare: buttare, regalare, vendere')}</div><p class="mh">Condividere e stampare</p><div class="mlist">${B('sync','Famiglia: '+(sy.fam?'collegata':'collega i telefoni'))}${B('qrs','Etichette QR per i contenitori')}${B('prt','Stampa piantine ed elenco')}</div><p class="mh">Altro</p><div class="mlist">${B('dati','Copie di sicurezza dei dati')}${B('look','Aspetto e colori')}${B('geo','Copia le misure di questa stanza')}${B('guide','Guida')}${S.demo?B('demo','Cancella l’esempio e riparti da zero'):''}${B('delr','Elimina questa stanza')}</div><div class="drow" style="margin-top:12px"><button type="button" class="btn" data-m="x">Chiudi</button></div></div>`;
   m.hidden=false;
   m.onclick=e=>{
     if(e.target===m){closeM();return;}
@@ -2407,6 +2414,7 @@ function openMenu(){
     else if(a==='ovr') overView();
     else if(a==='ver') verView();
     else if(a==='look') lookView();
+    else if(a==='geo') geoCopy();
     else if(a==='guide') helpView();
     else if(a==='fill'){
       closeM();
