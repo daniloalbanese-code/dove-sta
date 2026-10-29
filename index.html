@@ -4312,13 +4312,13 @@ function v3Open(opts){
   }
   if(!sp) sp={x:gx,z:gz};
   if(opts&&opts.at&&!hit(opts.at.x,opts.at.z,0.28)) sp={x:opts.at.x,z:opts.at.z};
-  const cam={x:sp.x,z:sp.z,yaw:0,pitch:-0.05,oy:-0.9,op:-0.95,od:Math.max(5,Math.max(sc.b[2]-sc.b[0],sc.b[3]-sc.b[1])*1.9)};
+  const vrot=(((ui.view.rot||0)%360)+360)%360,cam={x:sp.x,z:sp.z,yaw:0,pitch:-0.05,oy:vrot*Math.PI/180-0.35,op:-0.95,od:Math.max(5,Math.max(sc.b[2]-sc.b[0],sc.b[3]-sc.b[1])*1.9)};
   /* all'inizio guarda verso il mobile più lontano: si vede mezza stanza */
   {let fd=0;sc.boxes.forEach(q=>{if(!q.fid||q.deco) return;const d=Math.hypot(q.cx-sp.x,q.cz-sp.z);if(d>fd){fd=d;cam.yaw=Math.atan2(q.cx-sp.x,q.cz-sp.z);}});}
   S3.cam=cam;S3.sp=sp;
   S3.rid=R().id;
   S3.refresh=()=>{const ns=v3Scene(R());if(S3.rid!==R().id){S3.rid=R().id;S3.fit=0;}sc.boxes=ns.boxes;sc.labels=ns.labels;sc.floors=ns.floors;sc.b=ns.b;mkSolid();fl=mkFl();ceil=mkCe();const ex=S3.chips;if(ex){Object.keys(ex).forEach(k=>ex[k].remove());S3.chips={};}};
-  if(V3.keep&&emb){Object.assign(cam,V3.keep);}
+  if(V3.keep&&emb&&V3.keep.rot===vrot){Object.assign(cam,V3.keep);}
   const joy={x:0,y:0,id:null},keys={};
   const hint=()=>{$('#v3h').textContent=S3.mode==='walk'?'Joystick per camminare · trascina per guardarti intorno · pizzica per ingrandire · tocca due volte il pavimento per andarci':'Trascina per girare · pizzica per avvicinarti · tocca due volte il pavimento per camminare lì';;const h=$('#v3h');h.style.transition='opacity .6s';h.style.opacity='1';clearTimeout(S3.ht);S3.ht=setTimeout(()=>{h.style.opacity='0';},6000);};
   hint();
@@ -4467,7 +4467,7 @@ function v3Close(){
   if(!V3.on) return;
   V3.on=false;try{V3.raf();}catch(_){}
   try{V3.ro.disconnect();}catch(_){}
-  try{if(V3.emb) V3.keep={oy:V3.cam.oy,op:V3.cam.op,od:V3.cam.od};}catch(_){}
+  try{if(V3.emb) V3.keep={oy:V3.cam.oy,op:V3.cam.op,od:V3.cam.od,rot:(((ui.view.rot||0)%360)+360)%360};}catch(_){}
   try{$('#mapwrap').classList.remove('v3on');}catch(_){}
   window.removeEventListener('keydown',V3.kd);window.removeEventListener('keyup',V3.ku);window.removeEventListener('resize',V3.size);
   try{const x=V3.gl.getExtension('WEBGL_lose_context');if(x) x.loseContext();}catch(_){}
