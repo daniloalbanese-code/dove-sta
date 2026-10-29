@@ -104,6 +104,8 @@ select{min-height:38px;max-width:34vw;padding:0 10px;border:1px solid var(--line
 .rh{cursor:nwse-resize}
 .rd{fill:var(--bg);stroke:var(--accent);stroke-width:3}
 .tz{fill:none;stroke:var(--wall);stroke-linecap:square}
+.pring{fill:none;stroke:var(--accent);stroke-width:4;pointer-events:none;animation:pring 1.1s ease-out 3}
+@keyframes pring{from{transform:scale(.55);opacity:.95}to{transform:scale(1.6);opacity:0}}
 .tz.sel{stroke:var(--accent)}
 .tzh{fill:none;stroke:transparent;stroke-linecap:round;cursor:pointer}
 .guide{stroke:var(--accent);stroke-width:1;stroke-dasharray:6 5;opacity:.75;pointer-events:none}
@@ -1018,6 +1020,7 @@ function render(){
     const showIcon=m>=16;
     const iy=inside?(bar?-9:-6):(bar?-2:0);
     h+=`<g class="${cls}" data-k="furn" data-id="${f.id}"><g transform="translate(${fp[0].toFixed(1)} ${fp[1].toFixed(1)})">`;
+    if(ui.pulse===f.id) h+=`<circle class="pring" r="${(Math.max(ex,ey)/2+12).toFixed(1)}"/>`;
     if(ex<40||ey<40){const hw=Math.max(ex,40),hh=Math.max(ey,40);h+=`<rect x="${(-hw/2).toFixed(1)}" y="${(-hh/2).toFixed(1)}" width="${hw.toFixed(1)}" height="${hh.toFixed(1)}" fill="transparent"/>`;}
     h+=`<g transform="rotate(${er})">`;
     if(sel) h+=`<rect class="halo" x="${-wpx/2-5}" y="${-dpx/2-5}" width="${wpx+10}" height="${dpx+10}" rx="9"/>`;
@@ -2275,7 +2278,7 @@ $('#results').addEventListener('click',e=>{
   if(b.dataset.room!==S.cur){S.cur=b.dataset.room;renderRoomSel();renderInfo();}
   ui.mode='furn';
   document.querySelectorAll('[data-mode]').forEach(x=>{const on=x.dataset.mode==='furn';x.classList.toggle('on',on);x.setAttribute('aria-pressed',on?'true':'false');});
-  fit();select(b.dataset.res);
+  fit();select(b.dataset.res);foundFx(b.dataset.res);
 });
 
 /* ---------- barra, stanze, zoom ---------- */
@@ -3003,11 +3006,20 @@ function calScale(L){
   r.pts.forEach(sc);r.walls.forEach(w=>{sc(w.a);sc(w.b);});r.ops.forEach(o=>{sc(o);o.w=Math.max(0.5,rnd(o.w*k));});
   ui.cal=null;save();fit();renderInfo();renderDock();
 }
+/* Mobile trovato (ricerca o elenco): lo mostra in 2D con un cerchio che pulsa e porta anche la vista 3D lì */
+function foundFx(fid){
+  const f0=getF(fid),f=f0?topOf(R(),f0):null;if(!f) return;
+  ui.pulse=fid;
+  const v=ui.view;v.ppm=Math.max(v.ppm,70);v.cx=f.x;v.cy=f.y;
+  render();
+  clearTimeout(foundFx.t);foundFx.t=setTimeout(()=>{ui.pulse=null;render();},3400);
+  setTimeout(()=>{try{if(V3.on&&V3.focusF) V3.focusF(f);}catch(_){}},80);
+}
 function goTo(rid,fid){
   closeM();
   if(rid!==S.cur){S.cur=rid;ui.sel=null;ui.selWall=null;ui.selOp=null;renderRoomSel();renderInfo();save();}
   setMode('furn');fit();
-  if(fid) select(fid);
+  if(fid){select(fid);foundFx(fid);}
 }
 function listView(){
   const m=$('#modal'),sort=ui.lsort||'nome';
@@ -4316,6 +4328,14 @@ function v3Open(opts){
   /* all'inizio guarda verso il mobile più lontano: si vede mezza stanza */
   {let fd=0;sc.boxes.forEach(q=>{if(!q.fid||q.deco) return;const d=Math.hypot(q.cx-sp.x,q.cz-sp.z);if(d>fd){fd=d;cam.yaw=Math.atan2(q.cx-sp.x,q.cz-sp.z);}});}
   S3.cam=cam;S3.sp=sp;
+  S3.focusF=f=>{
+    if(S3.mode==='walk'){
+      let dx=cam.x-f.x,dz=cam.z-f.y;const dl=Math.hypot(dx,dz)||1;dx/=dl;dz/=dl;
+      let nx=f.x,nz=f.y;
+      for(const d of [1.8,1.4,1.0,2.4]){const x=f.x+dx*d,z=f.y+dz*d;if(!hit(x,z,0.28)){nx=x;nz=z;break;}}
+      if(nx!==f.x||nz!==f.y){cam.x=nx;cam.z=nz;cam.yaw=Math.atan2(f.x-nx,f.y-nz);cam.pitch=-0.25;}
+    }else{cam.fx=f.x;cam.fz=f.y;cam.od=Math.min(cam.od,5.5);cam.op=-0.9;}
+  };
   S3.rid=R().id;
   S3.refresh=()=>{const ns=v3Scene(R());if(S3.rid!==R().id){S3.rid=R().id;S3.fit=0;}sc.boxes=ns.boxes;sc.labels=ns.labels;sc.floors=ns.floors;sc.b=ns.b;mkSolid();fl=mkFl();ceil=mkCe();const ex=S3.chips;if(ex){Object.keys(ex).forEach(k=>ex[k].remove());S3.chips={};}};
   if(V3.keep&&emb&&V3.keep.rot===vrot){Object.assign(cam,V3.keep);}
@@ -4328,7 +4348,7 @@ function v3Open(opts){
   const drawBox=(b,y1o)=>{
     const y1=y1o==null?b.y1:y1o,h=y1-b.y0;if(h<0.01) return;
     gl.uniformMatrix4fv(U.m,false,[b.c*b.hl*2,0,b.s*b.hl*2,0, 0,h,0,0, -b.s*b.ht*2,0,b.c*b.ht*2,0, b.cx,b.y0+h/2,b.cz,1]);
-    gl.uniform1f(U.t,b.wall?1:0);gl.uniform2f(U.r,b.c,b.s);gl.uniform3fv(U.c,(ui.sel&&b.fid===ui.sel&&!b.deco)?[b.col[0]*0.5+0.06,b.col[1]*0.5+0.18,b.col[2]*0.5+0.4]:b.col);gl.drawElements(gl.TRIANGLES,36,gl.UNSIGNED_SHORT,0);
+    gl.uniform1f(U.t,b.wall?1:0);gl.uniform2f(U.r,b.c,b.s);gl.uniform3fv(U.c,(ui.sel&&b.fid===ui.sel&&!b.deco)?(ui.pulse===b.fid?(()=>{const k=0.5+0.5*Math.sin(performance.now()/160);return [b.col[0]*0.5+0.06+0.4*k,b.col[1]*0.5+0.18+0.3*k,b.col[2]*0.5+0.4];})():[b.col[0]*0.5+0.06,b.col[1]*0.5+0.18,b.col[2]*0.5+0.4]):b.col);gl.drawElements(gl.TRIANGLES,36,gl.UNSIGNED_SHORT,0);
   };
   const IDM=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
   const frame=t=>{
@@ -4350,9 +4370,10 @@ function v3Open(opts){
       vp=m4mul(m4persp(Math.min(2.1,clamp(2*Math.atan(Math.tan(0.62)/(W/Hh)),1.1,1.7)/(cam.zm||1)),W/Hh,0.08,80),m4look(eye,[eye[0]+Math.sin(cam.yaw)*cp,eye[1]+Math.sin(cam.pitch),eye[2]+Math.cos(cam.yaw)*cp]));
     }else{
       const cp=Math.cos(cam.op);
-      eye=[gx+Math.sin(cam.oy)*cp*cam.od,-Math.sin(cam.op)*cam.od+0.2,gz+Math.cos(cam.oy)*cp*cam.od];
+      const tx=cam.fx!=null?cam.fx:gx,tz=cam.fz!=null?cam.fz:gz;
+      eye=[tx+Math.sin(cam.oy)*cp*cam.od,-Math.sin(cam.op)*cam.od+0.2,tz+Math.cos(cam.oy)*cp*cam.od];
       if(!S3.fit){S3.fit=1;const hd=Math.hypot(sc.b[2]-sc.b[0],sc.b[3]-sc.b[1])/2+0.6;cam.od=clamp(hd*0.85/(Math.tan(0.45)*Math.min(1,W/Hh)),4,40);}
-      vp=m4mul(m4persp(0.9,W/Hh,0.1,120),m4look(eye,[gx,0.3,gz]));
+      vp=m4mul(m4persp(0.9,W/Hh,0.1,120),m4look(eye,[tx,0.3,tz]));
     }
     S3.vp=vp;
     gl.viewport(0,0,cv.width,cv.height);
