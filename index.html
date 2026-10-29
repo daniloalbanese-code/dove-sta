@@ -4115,30 +4115,62 @@ function v3Scene(r){
   const boxes=[],labels=[],floors=[],WT=0.14,WH=2.4;
   const wallCol=[0.94,0.93,0.90];
   const addB=(cx,cz,len,th,y0,y1,ang,col,o)=>boxes.push(Object.assign({cx,cz,hl:len/2,ht:th/2,y0,y1,c:Math.cos(ang),s:Math.sin(ang),col},o||{}));
+  /* Allinea gli angoli quasi uguali (differenze di pochi cm): in mappa sembrano in linea, in 3D con lo spessore del muro si vedono scalini e spallette */
+  const snapMap=new Map();
+  ['x','y'].forEach(ax=>{
+    const vals=[];
+    (r.pts||[]).forEach(q=>vals.push(q));(r.walls||[]).forEach(w=>{vals.push(w.a);vals.push(w.b);});
+    vals.sort((m,n)=>m[ax]-n[ax]);
+    let g=[];const flush=()=>{if(g.length>1){const mean=g.reduce((t,q)=>t+q[ax],0)/g.length;g.forEach(q=>{const o=snapMap.get(q)||{};o[ax]=mean;snapMap.set(q,o);});}g=[];};
+    vals.forEach(q=>{if(g.length&&(q[ax]-g[g.length-1][ax]>0.12||q[ax]-g[0][ax]>0.25)) flush();g.push(q);});
+    flush();
+  });
+  const sp=q=>{const o=snapMap.get(q)||{};return {x:o.x!==undefined?o.x:q.x,y:o.y!==undefined?o.y:q.y};};
   const segs=[];
-  const P=r.pts||[];
-  for(let i=0;i<P.length;i++){const j=i+1;if(j<P.length||r.closed){const q=P[j%P.length];segs.push([P[i],q]);}}
-  (r.walls||[]).forEach(w=>segs.push([w.a,w.b]));
+  const P0=r.pts||[],P=P0.map(sp);
+  for(let i=0;i<P.length;i++){const j=i+1;if(j<P.length||r.closed){segs.push([P[i],P[j%P.length],0]);}}
+  (r.walls||[]).forEach(w=>segs.push([sp(w.a),sp(w.b),w.ds?1:0]));
   const ops=(r.ops||[]);
-  segs.forEach(([A,B])=>{
+  /* ogni porta o finestra apre solo il muro più vicino */
+  const opSeg=ops.map(o=>{
+    let bi=-1,bd=0.25;
+    segs.forEach(([A,B,ds],i)=>{
+      if(ds) return;
+      const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);if(L<0.05) return;
+      const ux=dx/L,uy=dy/L,px=o.x-A.x,py=o.y-A.y,t=px*ux+py*uy,d=Math.abs(px*uy-py*ux);
+      if(t>-0.05&&t<L+0.05&&d<bd){bd=d;bi=i;}
+    });
+    return bi;
+  });
+  /* un'estremità libera finisce dove finisce il muro; si prolunga solo dove c'è un altro muro che si incontra */
+  const touches=(pt,self)=>segs.some((sg,i)=>{
+    if(i===self||sg[2]) return false;
+    const A=sg[0],B=sg[1],dx=B.x-A.x,dy=B.y-A.y,L2=dx*dx+dy*dy;if(L2<1e-6) return false;
+    const t=Math.max(0,Math.min(1,((pt.x-A.x)*dx+(pt.y-A.y)*dy)/L2));
+    return Math.hypot(A.x+dx*t-pt.x,A.y+dy*t-pt.y)<0.2;
+  });
+  segs.forEach(([A,B,ds],si)=>{
     const dx=B.x-A.x,dy=B.y-A.y,L=Math.hypot(dx,dy);if(L<0.05) return;
     const ux=dx/L,uy=dy/L,ang=Math.atan2(uy,ux);
+    if(ds){addB(A.x+ux*L/2,A.y+uy*L/2,L,0.05,0,0.04,ang,[0.62,0.6,0.57],{});return;}
     const on=[];
-    ops.forEach(o=>{
-      const px=o.x-A.x,py=o.y-A.y,t=px*ux+py*uy,d=Math.abs(px*uy-py*ux);
-      if(d<0.3&&t>-0.05&&t<L+0.05) on.push({t,w:o.w,k:o.k});
+    ops.forEach((o,k)=>{
+      if(opSeg[k]!==si) return;
+      const t=(o.x-A.x)*ux+(o.y-A.y)*uy;
+      on.push({t,w:o.w,k:o.k});
     });
     on.sort((a,b)=>a.t-b.t);
+    const e0=touches(A,si)?WT/2:0,e1=touches(B,si)?WT/2:0;
     const piece=(t0,t1,y0,y1)=>{if(t1-t0<0.02||y1-y0<0.02) return;const m=(t0+t1)/2;addB(A.x+ux*m,A.y+uy*m,t1-t0,WT,y0,y1,ang,wallCol,{wall:1});};
-    let cur=-WT/2;
+    let cur=-e0;
     on.forEach(o=>{
-      const a=Math.max(cur,o.t-o.w/2),b=Math.min(L+WT/2,o.t+o.w/2);
+      const a=Math.max(cur,o.t-o.w/2),b=Math.min(L+e1,o.t+o.w/2);
       piece(cur,a,0,WH);
       if(o.k==='porta'){piece(a,b,2.05,WH);}
       else{piece(a,b,0,0.9);piece(a,b,2.1,WH);}
       cur=Math.max(cur,b);
     });
-    piece(cur,L+WT/2,0,WH);
+    piece(cur,L+e1,0,WH);
   });
   /* pavimento */
   let x0=1e9,z0=1e9,x1=-1e9,z1=-1e9;
