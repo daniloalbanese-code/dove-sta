@@ -4565,7 +4565,7 @@ function v3Open(opts){
       const pe={clientX:ex,clientY:ey},fid=pickF(pe);
       if(fid){
         const f=R().furn.find(x=>x.id===fid),pt=floorAt(pe);
-        if(f&&pt){hideTip();S3.mv={f,ox:f.x-pt.x,oy:f.y-pt.z,x0:f.x,y0:f.y,prevSel:ui.sel,t:0};ui.sel=fid;toast('Trascina il mobile dove vuoi, poi rilascia.');}
+        if(f&&pt){hideTip();S3.mv={f,ox:f.x-pt.x,oy:f.y-pt.z,x0:f.x,y0:f.y,prevSel:ui.sel,t:0,inv:v3Blocked(sc.boxes,f,f.x,f.y)};ui.sel=fid;toast('Trascina il mobile dove vuoi, poi rilascia.');}
       }else{hideTip();dbl(pe);}
     },520);
   });
@@ -4573,7 +4573,7 @@ function v3Open(opts){
     if(lpT&&dn&&Math.hypot(e.clientX-dn.x,e.clientY-dn.y)>10) lpCancel();
     const m=S3.mv;if(!m) return;
     const pt=floorAt(e);if(!pt) return;
-    m.f.x=snap(pt.x+m.ox);m.f.y=snap(pt.z+m.oy);
+    v3MoveF(m,sc.boxes,pt.x+m.ox,pt.z+m.oy);
     if(performance.now()-m.t>50){m.t=performance.now();try{S3.refresh();}catch(_){}}
   });
   const endMove=()=>{
@@ -4609,6 +4609,47 @@ function v3Open(opts){
   if(!emb){try{bkArm();}catch(_){}}
   try{S3.ro=new ResizeObserver(()=>{size();if(S3.emb) S3.fit=0;});S3.ro.observe(el);}catch(_){}
   if(emb) jo.hidden=true;
+}
+/* Spostando un mobile in 3D non può entrare nei muri né attraversarli: si ferma contro il muro e ci scivola lungo. */
+function v3Obbs(f,x,y){
+  const a=(f.rot||0)*Math.PI/180,c=Math.cos(a),n=Math.sin(a),q=0.004;
+  const mk=(lx,ly,w,d)=>({x:x+lx*c-ly*n,y:y+lx*n+ly*c,c,s:n,hl:Math.max(0.01,w/2-q),ht:Math.max(0.01,d/2-q)});
+  if(f.sh==='elle'){const aw=f.w*LA,bd=f.d*LA;return [mk(-f.w/2+aw/2,0,aw,f.d),mk(aw/2,f.d/2-bd/2,f.w-aw,bd)];}
+  return [mk(0,0,f.w,f.d)];
+}
+function v3Overlap(A,B){
+  const ax=[[A.c,A.s],[-A.s,A.c],[B.c,B.s],[-B.s,B.c]];
+  for(const [ux,uy] of ax){
+    const d=Math.abs((B.x-A.x)*ux+(B.y-A.y)*uy);
+    const ra=A.hl*Math.abs(A.c*ux+A.s*uy)+A.ht*Math.abs(-A.s*ux+A.c*uy);
+    const rb=B.hl*Math.abs(B.c*ux+B.s*uy)+B.ht*Math.abs(-B.s*ux+B.c*uy);
+    if(d>=ra+rb) return false;
+  }
+  return true;
+}
+function v3Blocked(boxes,f,x,y){
+  const fs=v3Obbs(f,x,y);
+  for(const b of boxes){
+    if(!b.wall||b.dr||b.y0>0.9) continue;
+    const W={x:b.cx,y:b.cz,c:b.c,s:b.s,hl:b.hl,ht:b.ht};
+    for(const F of fs) if(v3Overlap(F,W)) return true;
+  }
+  return false;
+}
+function v3MoveF(m,boxes,tx,ty){
+  const f=m.f;
+  const ok=(x,y)=>{const bl=v3Blocked(boxes,f,x,y);if(m.inv){if(!bl) m.inv=false;return true;}return !bl;};
+  for(let it=0;it<400;it++){
+    const dx=tx-f.x,dy=ty-f.y,dist=Math.hypot(dx,dy);
+    if(dist<0.002) break;
+    const st=Math.min(0.04,dist),nx=f.x+dx/dist*st,ny=f.y+dy/dist*st;
+    if(ok(nx,ny)){f.x=nx;f.y=ny;}
+    else if(Math.abs(dx)>0.002&&ok(f.x+Math.sign(dx)*Math.min(st,Math.abs(dx)),f.y)) f.x+=Math.sign(dx)*Math.min(st,Math.abs(dx));
+    else if(Math.abs(dy)>0.002&&ok(f.x,f.y+Math.sign(dy)*Math.min(st,Math.abs(dy)))) f.y+=Math.sign(dy)*Math.min(st,Math.abs(dy));
+    else break;
+  }
+  const qx=snap(f.x),qy=snap(f.y);
+  if(m.inv||!v3Blocked(boxes,f,qx,qy)){f.x=qx;f.y=qy;}
 }
 function v3In(P,x,z){let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){if((P[i].y>z)!==(P[j].y>z)&&x<(P[j].x-P[i].x)*(z-P[i].y)/(P[j].y-P[i].y)+P[i].x) c=!c;}return c;}
 function v3Close(){
